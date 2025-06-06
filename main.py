@@ -52,8 +52,8 @@ class Solver:
         r = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (list(self.G[s])+list(self.O[s])) for i2 in (list(self.G[s])+list(self.F[s])) if i1!=i2 ], vtype=gb.GRB.BINARY)
         z = self.estimator.addVars([ (s,i) for s in self.S for i in self.G[s] if i not in self.Gp[s] ], vtype=gb.GRB.BINARY)
         h = self.estimator.addVars([ (s,i1,i2) for s in self.B for i1 in self.G[s] for i2 in self.G[s] if ((i1 not in self.Gp[s]) and (i2 not in self.Gp[s]) and (i1!=i2))], vtype=gb.GRB.BINARY)
-        w1 = self.estimator.addVars([ (i,j,k) for j in self.A4 for k in [1,2] for i in self.T1[j] ], vtype=gb.GRB.BINARY)
-        w2 = self.estimator.addVars([ (i,j,k) for j in self.A4 for k in [1,2] for i in self.T2[j] ], vtype=gb.GRB.BINARY)
+        w1 = self.estimator.addVars([ (j,i,k) for j in self.A4 for k in [1,2] for i in self.T1[j] ], vtype=gb.GRB.BINARY)
+        w2 = self.estimator.addVars([ (j,i,k) for j in self.A4 for k in [1,2] for i in self.T2[j] ], vtype=gb.GRB.BINARY)
 
         # Departure and arrival constraints
         self.estimator.addConstrs(( y[i,self.o[i]] >= self.d[i,self.o[i]+self.θ]
@@ -85,9 +85,9 @@ class Solver:
         self.estimator.addConstrs(( y[i1,s]-y[i2,s] <= self.M * (1-q[s,i1,i2])
                                    for s in self.S for i1 in (list(self.G[s])+list(self.O[s])) for i2 in (list(self.G[s])+list(self.O[s])) if i1<i2 ))
         self.estimator.addConstrs(( x[i2,s]-y[i1,s] <= self.M * r[s,i1,i2]
-                                   for s in self.S for i1 in (list(self.G[s])+list(self.O[s])) for i2 in (list(self.G[s])+list(self.F[s])) if i1!=i2))
+                                   for s in self.S for i1 in (list(self.G[s])+list(self.O[s])) for i2 in (list(self.G[s])+list(self.F[s])) if i1!=i2 ))
         self.estimator.addConstrs(( y[i1,s]-x[i2,s] <= self.M * (1-r[s,i1,i2])
-                                   for s in self.S for i1 in (list(self.G[s])+list(self.O[s])) for i2 in (list(self.G[s])+list(self.F[s])) if i1!=i2))
+                                   for s in self.S for i1 in (list(self.G[s])+list(self.O[s])) for i2 in (list(self.G[s])+list(self.F[s])) if i1!=i2 ))
 
         # Siding and overtake constraints
         self.estimator.addConstrs(( z[s,i] == 0
@@ -103,31 +103,60 @@ class Solver:
                                                 - gb.quicksum(1-p[s,i1,i2] for i2 in self.G[s] if i2 not in self.Gp[s] and i1 < i2)
                                                 - gb.quicksum(p[s,i2,i1] for i2 in self.G[s] if i2 not in self.Gp[s] and i2 < i1)
                                                 + gb.quicksum(r[s,i2,i1] for i2 in self.G[s] if i2 not in self.Gp[s] and i2 != i1)
-                                    for s in self.B for i1 in self.G[s] if i1 not in self.Gp[s]))
+                                    for s in self.B for i1 in self.G[s] if i1 not in self.Gp[s] ))
         
         # Single track capacity and headway constraints
         self.estimator.addConstrs(( y[i1,self.P[j][0]] >= x[i2,self.P[j][0]] - self.M * (1-r[self.P[j][1],i2,i1])
-                                   for j in self.A1 for i1 in self.T1[j] for i2 in self.T2[j]))
+                                   for j in self.A1 for i1 in self.T1[j] for i2 in self.T2[j] ))
         self.estimator.addConstrs(( y[i2,self.P[j][1]] >= x[i1,self.P[j][1]] - self.M * (1-r[self.P[j][0],i1,i2])
-                                   for j in self.A1 for i1 in self.T1[j] for i2 in self.T2[j]))
-        self.estimator.addConstrs(( y[i1, self.P[j][0]] >= x[i2, self.P[j][1]] + self.τ - min(self.t[i1,j], self.t[i2,j]) - self.M * q[self.P[j][0], i1, i2]
-                                   for j in self.A1 for i1 in self.T1[j] for i2 in self.T1[j] if i1 < i2))
-        self.estimator.addConstrs(( y[i1, self.P[j][0]] >= x[i2, self.P[j][1]] + self.τ - min(self.t[i1,j], self.t[i2,j]) - self.M * (1-q[self.P[j][0], i2, i1])
-                                   for j in self.A1 for i1 in self.T1[j] for i2 in self.T1[j] if i2 < i1))
-        self.estimator.addConstrs(( y[i1, self.P[j][1]] >= x[i2, self.P[j][0]] + self.τ - min(self.t[i1,j], self.t[i2,j]) - self.M * q[self.P[j][1], i1, i2]
-                                   for j in self.A1 for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2))
-        self.estimator.addConstrs(( y[i1, self.P[j][1]] >= x[i2, self.P[j][0]] + self.τ - min(self.t[i1,j], self.t[i2,j]) - self.M * (1-q[self.P[j][1], i2, i1])
-                                   for j in self.A1 for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1))
+                                   for j in self.A1 for i1 in self.T1[j] for i2 in self.T2[j] ))
+        self.estimator.addConstrs(( y[i1, self.P[j][0]] >= x[i2, self.P[j][1]] + self.τ - min(self.t[i1,j], self.t[i2,j])
+                                    - self.M * q[self.P[j][0], i1, i2]
+                                   for j in self.A1 for i1 in self.T1[j] for i2 in self.T1[j] if i1 < i2 ))
+        self.estimator.addConstrs(( y[i1, self.P[j][0]] >= x[i2, self.P[j][1]] + self.τ - min(self.t[i1,j], self.t[i2,j])
+                                    - self.M * (1-q[self.P[j][0], i2, i1])
+                                   for j in self.A1 for i1 in self.T1[j] for i2 in self.T1[j] if i2 < i1 ))
+        self.estimator.addConstrs(( y[i1, self.P[j][1]] >= x[i2, self.P[j][0]] + self.τ - min(self.t[i1,j], self.t[i2,j])
+                                    - self.M * q[self.P[j][1], i1, i2]
+                                   for j in self.A1 for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 ))
+        self.estimator.addConstrs(( y[i1, self.P[j][1]] >= x[i2, self.P[j][0]] + self.τ - min(self.t[i1,j], self.t[i2,j])
+                                    - self.M * (1-q[self.P[j][1], i2, i1])
+                                   for j in self.A1 for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1 ))
         
         # Double track and headway constraints
-        self.estimator.addConstrs(( y[i1, self.P[j][0]] >= x[i2, self.P[j][1]] + self.τ - min(self.t[i1,j], self.t[i2,j]) - self.M * q[self.P[j][0], i1, i2]
-                                   for j in self.A2 for i1 in self.T1[j] for i2 in self.T1[j] if i1 < i2))
-        self.estimator.addConstrs(( y[i1, self.P[j][0]] >= x[i2, self.P[j][1]] + self.τ - min(self.t[i1,j], self.t[i2,j]) - self.M * (1-q[self.P[j][0], i2, i1])
-                                   for j in self.A2 for i1 in self.T1[j] for i2 in self.T1[j] if i2 < i1))
-        self.estimator.addConstrs(( y[i1, self.P[j][1]] >= x[i2, self.P[j][0]] + self.τ - min(self.t[i1,j], self.t[i2,j]) - self.M * q[self.P[j][1], i1, i2]
-                                   for j in self.A2 for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2))
-        self.estimator.addConstrs(( y[i1, self.P[j][1]] >= x[i2, self.P[j][0]] + self.τ - min(self.t[i1,j], self.t[i2,j]) - self.M * (1-q[self.P[j][1], i2, i1])
-                                   for j in self.A2 for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1))
+        self.estimator.addConstrs(( y[i1, self.P[j][0]] >= x[i2, self.P[j][1]] + self.τ - min(self.t[i1,j], self.t[i2,j])
+                                    - self.M * q[self.P[j][0], i1, i2]
+                                   for j in self.A2 for i1 in self.T1[j] for i2 in self.T1[j] if i1 < i2 ))
+        self.estimator.addConstrs(( y[i1, self.P[j][0]] >= x[i2, self.P[j][1]] + self.τ - min(self.t[i1,j], self.t[i2,j])
+                                    - self.M * (1-q[self.P[j][0], i2, i1])
+                                   for j in self.A2 for i1 in self.T1[j] for i2 in self.T1[j] if i2 < i1 ))
+        self.estimator.addConstrs(( y[i1, self.P[j][1]] >= x[i2, self.P[j][0]] + self.τ - min(self.t[i1,j], self.t[i2,j])
+                                    - self.M * q[self.P[j][1], i1, i2]
+                                   for j in self.A2 for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 ))
+        self.estimator.addConstrs(( y[i1, self.P[j][1]] >= x[i2, self.P[j][0]] + self.τ - min(self.t[i1,j], self.t[i2,j])
+                                    - self.M * (1-q[self.P[j][1], i2, i1])
+                                   for j in self.A2 for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1 ))
         
         # Quadruple track and headway constraints
+        self.estimator.addConstrs(( gb.quicksum(w1[j,i,k] for k in [1,2]) == 1
+                                   for j in self.A4 for i in self.T1[j] ))
+        self.estimator.addConstrs(( gb.quicksum(w2[j,i,k] for k in [1,2]) == 1
+                                   for j in self.A4 for i in self.T2[j] ))
+        self.estimator.addConstrs(( y[i1,self.P[j][0]] >= x[i2, self.P[j][1]] + self.τ - min(self.t[i1,j], self.t[i2,j])
+                                    - self.M * (2 + q[self.P[j][0], i1, i2] - w1[j,i1,k] - w1[j,i2,k])
+                                    for j in self.A4 for k in [1,2] for i1 in self.T1[j] for i2 in self.T1[j] if i1 < i2 ))
+        self.estimator.addConstrs(( y[i1,self.P[j][0]] >= x[i2, self.P[j][1]] + self.τ - min(self.t[i1,j], self.t[i2,j])
+                                    - self.M * (3 - q[self.P[j][0], i2, i1] - w1[j,i1,k] - w1[j,i2,k])
+                                    for j in self.A4 for k in [1,2] for i1 in self.T1[j] for i2 in self.T1[j] if i2 < i1 ))
+        self.estimator.addConstrs(( y[i1,self.P[j][2]] >= x[i2, self.P[j][0]] + self.τ - min(self.t[i1,j], self.t[i2,j])
+                                    - self.M * (2 + q[self.P[j][1], i1, i2] - w2[j,i1,k] - w2[j,i2,k])
+                                    for j in self.A4 for k in [1,2] for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 ))
+        self.estimator.addConstrs(( y[i1,self.P[j][1]] >= x[i2, self.P[j][0]] + self.τ - min(self.t[i1,j], self.t[i2,j])
+                                    - self.M * (3 - q[self.P[j][1], i2, i1] - w2[j,i1,k] - w2[j,i2,k])
+                                    for j in self.A4 for k in [1,2] for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1 ))
         
+        # Drop off/Pick up capacity constraint for non-yard stations
+        self.estimator.addConstrs(( x[i1,s] >= y[i2,s] - self.M * p[s,i1,i2]
+                                   for s in self.U for i1 in self.Gp[s] for i2 in self.Gp[s] if i1 < i2 ))
+        self.estimator.addConstrs(( x[i1,s] >= y[i2,s] - self.M * (1-p[s,i2,i1])
+                                   for s in self.U for i1 in self.Gp[s] for i2 in self.Gp[s] if i2 < i1 ))
