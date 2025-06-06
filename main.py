@@ -160,3 +160,13 @@ class Solver:
                                    for s in self.U for i1 in self.Gp[s] for i2 in self.Gp[s] if i1 < i2 ))
         self.estimator.addConstrs(( x[i1,s] >= y[i2,s] - self.M * (1-p[s,i2,i1])
                                    for s in self.U for i1 in self.Gp[s] for i2 in self.Gp[s] if i2 < i1 ))
+        
+        # Objective function
+        self.estimator.setObjective(
+            (self.λ * gb.quicksum(δp[i,s] for i in self.H for s in (list(self.K[i])+[self.f[i]]))
+            + gb.quicksum(δp[i,s] for i in self.L for s in (list(self.K[i])+[self.f[i]]))),
+            gb.GRB.MINIMIZE
+        )
+
+        # Run
+        self.estimator.optimize()
