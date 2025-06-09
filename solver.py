@@ -1,4 +1,5 @@
 import gurobipy as gb
+import numpy as np
 
 class Solver:
     def __init__(self, I, S, J, H, L, A1, A2, A4, B, U, V, C, W, Cp, K, E, P, o, f, G, Gp, O, F, T1, T2, a, d, t, n, m, α, β, γ, θ, λ, τ, M):
