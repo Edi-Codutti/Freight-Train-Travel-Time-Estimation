@@ -43,13 +43,13 @@ class Solver:
 
     def solve(self):
         # Decision Variables
-        x = self.estimator.addVars([ (i,s) for i in self.I for s in (list(self.V[i])+[self.f[i]]) ], vtype=gb.GRB.CONTINUOUS)
-        y = self.estimator.addVars([ (i,s) for i in self.I for s in (list(self.V[i])+[self.o[i]]) ], vtype=gb.GRB.CONTINUOUS)
-        δp = self.estimator.addVars([ (i,s) for i in self.I for s in (list(self.K[i])+[self.f[i]]) ], vtype=gb.GRB.CONTINUOUS)
-        δm = self.estimator.addVars([ (i,s) for i in self.I for s in (list(self.K[i])+[self.f[i]]) ], vtype=gb.GRB.CONTINUOUS)
-        p = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (list(self.G[s])+list(self.F[s])) for i2 in (list(self.G[s])+list(self.F[s])) if i1<i2 ], vtype=gb.GRB.BINARY)
-        q = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (list(self.G[s])+list(self.O[s])) for i2 in (list(self.G[s])+list(self.O[s])) if i1<i2 ], vtype=gb.GRB.BINARY)
-        r = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (list(self.G[s])+list(self.O[s])) for i2 in (list(self.G[s])+list(self.F[s])) if i1!=i2 ], vtype=gb.GRB.BINARY)
+        x = self.estimator.addVars([ (i,s) for i in self.I for s in (self.V[i]+[self.f[i]]) ], vtype=gb.GRB.CONTINUOUS)
+        y = self.estimator.addVars([ (i,s) for i in self.I for s in (self.V[i]+[self.o[i]]) ], vtype=gb.GRB.CONTINUOUS)
+        δp = self.estimator.addVars([ (i,s) for i in self.I for s in (self.K[i]+[self.f[i]]) ], vtype=gb.GRB.CONTINUOUS)
+        δm = self.estimator.addVars([ (i,s) for i in self.I for s in (self.K[i]+[self.f[i]]) ], vtype=gb.GRB.CONTINUOUS)
+        p = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s]+self.F[s]) for i2 in (self.G[s]+self.F[s]) if i1<i2 ], vtype=gb.GRB.BINARY)
+        q = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s]+self.O[s]) for i2 in (self.G[s]+self.O[s]) if i1<i2 ], vtype=gb.GRB.BINARY)
+        r = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s]+self.O[s]) for i2 in (self.G[s]+self.F[s]) if i1!=i2 ], vtype=gb.GRB.BINARY)
         z = self.estimator.addVars([ (s,i) for s in self.S for i in self.G[s] if i not in self.Gp[s] ], vtype=gb.GRB.BINARY)
         h = self.estimator.addVars([ (s,i1,i2) for s in self.B for i1 in self.G[s] for i2 in self.G[s] if ((i1 not in self.Gp[s]) and (i2 not in self.Gp[s]) and (i1!=i2))], vtype=gb.GRB.BINARY)
         w1 = self.estimator.addVars([ (j,i,k) for j in self.A4 for k in [1,2] for i in self.T1[j] ], vtype=gb.GRB.BINARY)
@@ -65,7 +65,7 @@ class Solver:
         self.estimator.addConstrs(( y[i,s] >= x[i,s] + self.γ
                                    for i in self.I for s in self.W[i] ))
         self.estimator.addConstrs(( y[i,s] >= x[i,s] + self.α * z[i,s]
-                                   for i in self.I for s in set(self.V[i].flatten()).intersection(set(self.B.flatten())).difference(set(self.C[i].flatten())) ))
+                                   for i in self.I for s in set(self.V[i]).intersection(set(self.B)).difference(set(self.C[i])) ))
         self.estimator.addConstrs(( y[i,s] >= self.d[i,s]
                                    for i in self.I for s in self.K[i] ))
         self.estimator.addConstrs(( x[i,self.P[j][1]] == y[i,self.P[j][0]] + self.t[i,j]
@@ -73,21 +73,21 @@ class Solver:
 
         # Deviation calculation constraints
         self.estimator.addConstrs(( δp[i,s]-δm[i,s] == x[i,s]-self.a[i,s]
-                                   for i in self.I for s in (list(self.K[i])+[self.f[i]]) ))
+                                   for i in self.I for s in (self.K[i]+[self.f[i]]) ))
 
         # Arrival and departure order constraints
         self.estimator.addConstrs(( x[i2,s]-x[i1,s] <= self.M * p[s,i1,i2]
-                                   for s in self.S for i1 in (list(self.G[s])+list(self.F[s])) for i2 in (list(self.G[s])+list(self.F[s])) if i1<i2 ))
+                                   for s in self.S for i1 in (self.G[s]+self.F[s]) for i2 in (self.G[s]+self.F[s]) if i1<i2 ))
         self.estimator.addConstrs(( x[i1,s]-x[i2,s] <= self.M * (1-p[s,i1,i2])
-                                   for s in self.S for i1 in (list(self.G[s])+list(self.F[s])) for i2 in (list(self.G[s])+list(self.F[s])) if i1<i2 ))
+                                   for s in self.S for i1 in (self.G[s]+self.F[s]) for i2 in (self.G[s]+self.F[s]) if i1<i2 ))
         self.estimator.addConstrs(( y[i2,s]-y[i1,s] <= self.M * q[s,i1,i2]
-                                   for s in self.S for i1 in (list(self.G[s])+list(self.O[s])) for i2 in (list(self.G[s])+list(self.O[s])) if i1<i2 ))
+                                   for s in self.S for i1 in (self.G[s]+self.O[s]) for i2 in (self.G[s]+self.O[s]) if i1<i2 ))
         self.estimator.addConstrs(( y[i1,s]-y[i2,s] <= self.M * (1-q[s,i1,i2])
-                                   for s in self.S for i1 in (list(self.G[s])+list(self.O[s])) for i2 in (list(self.G[s])+list(self.O[s])) if i1<i2 ))
+                                   for s in self.S for i1 in (self.G[s]+self.O[s]) for i2 in (self.G[s]+self.O[s]) if i1<i2 ))
         self.estimator.addConstrs(( x[i2,s]-y[i1,s] <= self.M * r[s,i1,i2]
-                                   for s in self.S for i1 in (list(self.G[s])+list(self.O[s])) for i2 in (list(self.G[s])+list(self.F[s])) if i1!=i2 ))
+                                   for s in self.S for i1 in (self.G[s]+self.O[s]) for i2 in (self.G[s]+self.F[s]) if i1!=i2 ))
         self.estimator.addConstrs(( y[i1,s]-x[i2,s] <= self.M * (1-r[s,i1,i2])
-                                   for s in self.S for i1 in (list(self.G[s])+list(self.O[s])) for i2 in (list(self.G[s])+list(self.F[s])) if i1!=i2 ))
+                                   for s in self.S for i1 in (self.G[s]+self.O[s]) for i2 in (self.G[s]+self.F[s]) if i1!=i2 ))
 
         # Siding and overtake constraints
         self.estimator.addConstrs(( z[s,i] == 0
@@ -163,8 +163,8 @@ class Solver:
         
         # Objective function
         self.estimator.setObjective(
-            (self.λ * gb.quicksum(δp[i,s] for i in self.H for s in (list(self.K[i])+[self.f[i]]))
-            + gb.quicksum(δp[i,s] for i in self.L for s in (list(self.K[i])+[self.f[i]]))),
+            ( self.λ * gb.quicksum(δp[i,s] for i in self.H for s in (self.K[i]+[self.f[i]]))
+            + gb.quicksum(δp[i,s] for i in self.L for s in (self.K[i]+[self.f[i]])) ),
             gb.GRB.MINIMIZE
         )
 
