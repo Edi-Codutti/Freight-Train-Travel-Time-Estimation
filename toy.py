@@ -1,4 +1,4 @@
-from main import Solver
+from solver import Solver
 import numpy as np
 
 I = [0, 1, 2]
