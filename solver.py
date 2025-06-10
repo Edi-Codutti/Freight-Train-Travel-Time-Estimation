@@ -65,7 +65,7 @@ class Solver:
         q = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s]+self.O[s]) for i2 in (self.G[s]+self.O[s]) if i1<i2 ], vtype=gb.GRB.BINARY)
         r = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s]+self.O[s]) for i2 in (self.G[s]+self.F[s]) if i1!=i2 ], vtype=gb.GRB.BINARY)
         z = self.estimator.addVars([ (s,i) for s in self.S for i in self.G[s] if i not in self.Gp[s] ], vtype=gb.GRB.BINARY)
-        h = self.estimator.addVars([ (s,i1,i2) for s in self.B for i1 in self.G[s] for i2 in self.G[s] if ((i1 not in self.Gp[s]) and (i2 not in self.Gp[s]) and (i1!=i2))], vtype=gb.GRB.BINARY)
+        h = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in self.G[s] for i2 in self.G[s] if ((i1 not in self.Gp[s]) and (i2 not in self.Gp[s]) and (i1!=i2))], vtype=gb.GRB.BINARY)
         w1 = self.estimator.addVars([ (j,i,k) for j in self.A4 for k in [1,2] for i in self.T1[j] ], vtype=gb.GRB.BINARY)
         w2 = self.estimator.addVars([ (j,i,k) for j in self.A4 for k in [1,2] for i in self.T2[j] ], vtype=gb.GRB.BINARY)
 
@@ -123,7 +123,7 @@ class Solver:
         self.estimator.addConstrs(( y[i1,self.Pi(i1,j,0)] >= x[i2,self.Pi(i2,j,0)] - self.M * (1-r[self.Pi(i1,j,1),i2,i1])
                                    for j in self.A1 for i1 in self.T1[j] for i2 in self.T2[j] ))
         self.estimator.addConstrs(( y[i2,self.Pi(i2,j,1)] >= x[i1,self.Pi(i1,j,1)] - self.M * (1-r[self.Pi(i1,j,0),i1,i2])
-                                   for j in self.A1 for i1 in self.T1[j] for i2 in self.T2[j] ))
+                                   for j in self.A1 for i1 in self.T1[j] for i2 in self.T2[j] if self.Pi(i2,j,1) != self.f[i2] and self.Pi(i1,j,1) != self.o[i1] ))
         self.estimator.addConstrs(( y[i1, self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)] + self.tau(self.t[i1,j],self.t[i2,j]) - min(self.t[i1,j], self.t[i2,j])
                                     - self.M * q[self.Pi(i1,j,0), i1, i2]
                                    for j in self.A1 for i1 in self.T1[j] for i2 in self.T1[j] if i1 < i2 ))
@@ -132,10 +132,10 @@ class Solver:
                                    for j in self.A1 for i1 in self.T1[j] for i2 in self.T1[j] if i2 < i1 ))
         self.estimator.addConstrs(( y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)] + self.tau(self.t[i1,j],self.t[i2,j]) - min(self.t[i1,j], self.t[i2,j])
                                     - self.M * q[self.Pi(i1,j,1), i1, i2]
-                                   for j in self.A1 for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 ))
+                                   for j in self.A1 for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2] ))
         self.estimator.addConstrs(( y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)] + self.tau(self.t[i1,j],self.t[i2,j]) - min(self.t[i1,j], self.t[i2,j])
                                     - self.M * (1-q[self.Pi(i1,j,1), i2, i1])
-                                   for j in self.A1 for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1 ))
+                                   for j in self.A1 for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2] ))
         
         # Double track and headway constraints
         self.estimator.addConstrs(( y[i1, self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)] + self.tau(self.t[i1,j],self.t[i2,j]) - min(self.t[i1,j], self.t[i2,j])
@@ -146,10 +146,10 @@ class Solver:
                                    for j in self.A2 for i1 in self.T1[j] for i2 in self.T1[j] if i2 < i1 ))
         self.estimator.addConstrs(( y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)] + self.tau(self.t[i1,j],self.t[i2,j]) - min(self.t[i1,j], self.t[i2,j])
                                     - self.M * q[self.Pi(i1,j,1), i1, i2]
-                                   for j in self.A2 for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 ))
+                                   for j in self.A2 for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2] ))
         self.estimator.addConstrs(( y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)] + self.tau(self.t[i1,j],self.t[i2,j]) - min(self.t[i1,j], self.t[i2,j])
                                     - self.M * (1-q[self.Pi(i1,j,1), i2, i1])
-                                   for j in self.A2 for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1 ))
+                                   for j in self.A2 for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2]))
         
         # Quadruple track and headway constraints
         self.estimator.addConstrs(( gb.quicksum(w1[j,i,k] for k in [1,2]) == 1
@@ -184,3 +184,11 @@ class Solver:
 
         # Run
         self.estimator.optimize()
+
+        for i in self.I:
+            for s in self.V[i]+[self.f[i]]:
+                print(f"x[{i},{s}]={x[i,s].X}")
+        print("---")
+        for i in self.I:
+            for s in self.V[i]+[self.o[i]]:
+                print(f"y[{i},{s}]={y[i,s].X}")
