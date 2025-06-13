@@ -9,10 +9,11 @@ def list_for_train (train_to_number, station_to_number, L_t):
     # 2. Popola la lista usando i dizionari
     for train_id, station_list in L_t:
         train_num = train_to_number[train_id]  # numero treno assegnato
-        station_nums = [station_to_number[st] for st in station_list if st in station_to_number]  # numeri stazioni
+        station_nums = [station_to_number[st] for st in station_list if st in station_to_number]  # numeri stazioni TODO: è veramente necessario 'if st in station_to_number'?
         L[train_num] = station_nums
     return L
 
+# TODO: è possibile eliminare questa funzione e chiamare quella sopra invertendo il primo ed il secondo parametro?
 def list_for_station (train_to_number, station_to_number, L_t):
     n_staz = len(station_to_number)
     L = [[] for _ in range(n_staz)]
@@ -31,48 +32,85 @@ def somma_binari(row):
         count += row['# of YTrks']
     return count
 
-############## U ##############
+# main pt. 1
+df_SOD_1 = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Stn Order & Details', nrows=33, usecols='A:E')
 
-df_SOD_1 = pd.read_excel(r"C:\Users\andre\OneDrive\Desktop\Andrea\units Andrea\2 anno 2 semestre\MO\project\RAS-PSC_ValDataset_20200609-06.xlsx",
-                             sheet_name='Stn Order & Details', nrows=33, usecols='A:E', engine='openpyxl')
-df_SOD_2 = pd.read_excel(r"C:\Users\andre\OneDrive\Desktop\Andrea\units Andrea\2 anno 2 semestre\MO\project\RAS-PSC_ValDataset_20200609-06.xlsx",
-                             sheet_name='Stn Order & Details', skiprows=35, nrows=6, usecols='A:E', engine='openpyxl')
-df_SOD_3 = pd.read_excel(r"C:\Users\andre\OneDrive\Desktop\Andrea\units Andrea\2 anno 2 semestre\MO\project\RAS-PSC_ValDataset_20200609-06.xlsx",
-                             sheet_name='Stn Order & Details', skiprows=49, nrows=11, usecols='A:E', engine='openpyxl')
-df_SOD_4 = pd.read_excel(r"C:\Users\andre\OneDrive\Desktop\Andrea\units Andrea\2 anno 2 semestre\MO\project\RAS-PSC_ValDataset_20200609-06.xlsx",
-                             sheet_name='Stn Order & Details', skiprows=35, nrows=12, usecols='G:K', engine='openpyxl')
+# south route
+df_SOD_2 = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Stn Order & Details', skiprows=35, nrows=6, usecols='A:E')
+
+# main pt. 2
+df_SOD_3 = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Stn Order & Details', skiprows=49, nrows=11, usecols='A:E')
+
+# north route
+df_SOD_4 = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Stn Order & Details', skiprows=35, nrows=12, usecols='G:K')
+
 df_SOD_4.columns = df_SOD_1.columns
 df_SOD_3.columns = df_SOD_1.columns
 df_SOD_2.columns = df_SOD_1.columns
 
 df_SOD = pd.concat([df_SOD_1, df_SOD_4, df_SOD_3, df_SOD_2], ignore_index=True)
+
 # Crea un dizionario di mapping: nome stazione → indice
-station_to_number = df_SOD['Station'].to_dict()
+# station_to_number = df_SOD['Station'].to_dict() TODO: remove because immediately overwritten
 station_to_number = {name: idx for idx, name in df_SOD['Station'].items()}
+
+############## S ##############
+S = df_SOD.index.to_list()
+
+############## P ##############
+P = []
+j = 0
+for _ in range(len(df_SOD_1) + len(df_SOD_4) + len(df_SOD_3) - 1):
+    P.append((j,j+1))
+    j += 1
+j += 1
+for _ in range(len(df_SOD_2)):
+    P.append((j,j+1))
+    j += 1
+P.append((station_to_number[df_SOD_1['Station'].iloc[-1]], station_to_number[df_SOD_2['Station'].iloc[0]]))
+P.append((station_to_number[df_SOD_2['Station'].iloc[-1]], station_to_number[df_SOD_3['Station'].iloc[0]]))
+
+############## J ##############
+J = list(range(len(P)))
+
+############## B ##############
+B = df_SOD.query("Yard_Flg == 'Y' | Siding_Flg == 'Y'")['Station'].index.to_list()
 
 # non yard stations
 non_yard_stations_names = df_SOD[df_SOD['Yard_Flg']!='Y']['Station'].tolist()
 non_yard_stations = df_SOD[df_SOD['Yard_Flg']!='Y']['Station'].index.tolist()
 
-df_TMD = pd.read_excel(r"C:\Users\andre\OneDrive\Desktop\Andrea\units Andrea\2 anno 2 semestre\MO\project\RAS-PSC_ValDataset_20200609-06.xlsx",
-                              sheet_name='Train Mvmt Data', nrows=3978, usecols='A:M', engine='openpyxl')
+df_TMD = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Train Mvmt Data', nrows=8013, usecols='A:M')
+df_TMD = df_TMD[df_TMD['DATE']=='2017-09-06'] # modify this to change date
 
 # stations with do/pu activities
 yard_act_stations_names = df_TMD[df_TMD['WORK_ORDR_FLG']=='Y']['STATION'].unique()
-yard_act_stations = [station_to_number[name] for name in yard_act_stations_names if name in station_to_number]
+yard_act_stations = [station_to_number[name] for name in yard_act_stations_names if name in station_to_number] # TODO: do we need 'if name in station_to_number'?
 
+############## U ##############
 # U = set of non yard stations having do/pu activities
 U = list(set(non_yard_stations) & set(yard_act_stations))
 
 
-# associazione terno numero
+# associazione treno numero
 train_ids = df_TMD['TRAIN_CD'].unique()
 train_to_number = {int(train_id): i for i, train_id in enumerate(train_ids)}
 
-############## V ##############
-#lista di tuple : (treno, )
+############## I ##############
+I = list(range(len(train_to_number)))
 
+############## H ##############
+train_ids_standard_prty = df_TMD[df_TMD['TRAIN_PRTY']=='S']['TRAIN_CD'].unique()
+H = [train_to_number[id] for id in train_ids_standard_prty]
+
+############## L ##############
+train_ids_low_prty = df_TMD[df_TMD['TRAIN_PRTY']=='L']['TRAIN_CD'].unique()
+L = [train_to_number[id] for id in train_ids_low_prty]
+
+############## V ##############
+# V_t: lista di tuple : (treno, lista stazioni visitate)
 V_t = df_TMD.groupby('TRAIN_CD')['STATION'].apply(list).reset_index().values.tolist()
+
 # for train_id, stazioni in V_t:
 #     print(f"{train_id}: {stazioni}")
 
@@ -199,6 +237,7 @@ for _, row in df_TMD.iterrows(): # row è tipo diz, iterrows() restituisce una t
     station_name = row['STATION']
     arrival_time = row['PLAN_ARR_TM']  # può essere datetime o stringa
 
+    # TODO: è necessario questo if?
     if train_code in train_to_number and station_name in station_to_number:
         train_idx = train_to_number[train_code]
         station_idx = station_to_number[station_name]
