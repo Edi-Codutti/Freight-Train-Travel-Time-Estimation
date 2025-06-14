@@ -64,7 +64,7 @@ for _ in range(len(df_SOD_1) + len(df_SOD_4) + len(df_SOD_3) - 1):
     P.append((j,j+1))
     j += 1
 j += 1
-for _ in range(len(df_SOD_2)):
+for _ in range(len(df_SOD_2) - 1):
     P.append((j,j+1))
     j += 1
 P.append((station_to_number[df_SOD_1['Station'].iloc[-1]], station_to_number[df_SOD_2['Station'].iloc[0]]))
@@ -72,6 +72,26 @@ P.append((station_to_number[df_SOD_2['Station'].iloc[-1]], station_to_number[df_
 
 ############## J ##############
 J = list(range(len(P)))
+
+# extract distances for every arc
+df_TLEN = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Distances', nrows=105, usecols='A:C')
+df_NTC = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Num Track Chart', nrows=45, usecols='A:E')
+
+distances = [-1 for _ in range(len(J))]
+print(len(distances))
+for j in range(len(distances)):
+    s1_index, s2_index = P[j]
+    s1_name = df_SOD['Station'].iloc[s1_index]
+    s2_name = df_SOD['Station'].iloc[s2_index]
+    res = df_TLEN.query(f"(From == '{s1_name}' & To == '{s2_name}') | (From == '{s2_name}' & To == '{s1_name}')")['Distance (km)'].values
+    if res.size > 0:
+        distances[j] = res[0]
+        continue
+    else:
+        res = df_NTC.query(f"(FromLocation == '{s1_name}' & ToLocation == '{s2_name}') | (FromLocation == '{s2_name}' & ToLocation == '{s1_name}')")['Kilometers'].values
+        if res.size > 0:
+            distances[j] = res[0]
+distances[16] = 8.5 # Etn->Bda = Etn->Bd - Bda->Bd
 
 ############## B ##############
 B = df_SOD.query("Yard_Flg == 'Y' | Siding_Flg == 'Y'")['Station'].index.to_list()
