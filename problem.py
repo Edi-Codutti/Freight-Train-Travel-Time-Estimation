@@ -299,7 +299,33 @@ for _, row in df_TMD.iterrows(): # row è tipo diz, iterrows() restituisce una t
         d[train_idx, station_idx] = departure_time
 
 
-############## n ,m ##############
+############## n , m ##############
 
 n = df_SOD.apply(somma_binari, axis=1).tolist()
 
+m = [2]*n_staz
+m[22] = 4
+for i in range(27, 31):
+    m[i] = 4 
+m[40] = 1
+
+############## A1 , A2 , A4 ##############
+non2arcs = []
+A1 = []
+for m, (i,j) in enumerate(P) :
+    if i in list(range(40,44)):
+        non2arcs.append(J[m])
+        A1.append(J[m])
+
+A4 = [21, 22]
+non2arcs.append(21)
+non2arcs.append(22)
+for m, (i,j) in enumerate(P) :
+    if i in list(range(26,31)):
+        non2arcs.append(J[m])
+        A4.append(J[m])
+
+A2 = []
+for i in range(len(P)) :
+    if i not in non2arcs:
+        A2.append(i)
