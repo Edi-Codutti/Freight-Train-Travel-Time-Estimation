@@ -234,6 +234,23 @@ F_t = df_TMD[df_TMD['STN_TYPE']=='Dest'].groupby('STATION')['TRAIN_CD'].apply(li
 
 F = list_for_station (train_to_number, station_to_number, F_t)
 
+############## E ##############
+E = [[] for _ in I]
+for _, row in df_TMD.iterrows():
+    s1 = station_to_number[row['STATION']]
+    s2 = station_to_number[row['TO_STN']]
+    i = train_to_number[row['TRAIN_CD']]
+    if row['STN_TYPE'] != 'Origin' or row['STN_TYPE'] != 'Dest':
+        try:
+            E[i].append(P.index((s1,s2)))
+        except ValueError:
+            E[i].append(P.index((s2,s1)))
+
+# track speed list
+track_speed = [100] * len(J)
+
+############## t ##############
+t = [[] for _ in I]
 
 
 ############## a , d ##############
@@ -246,8 +263,6 @@ df_TMD['PLAN_ARR_TM'] = (pd.to_datetime(df_TMD['PLAN_ARR_TM']).dt.hour +
 df_TMD['PLAN_DEP_TM'] = (pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.hour +
                         pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.minute / 60 +
                         pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.second / 3600)
-
-
 
 # Matrice vuota con NaN (nessun arrivo)
 a = np.full((n_treni, n_staz), np.nan)
