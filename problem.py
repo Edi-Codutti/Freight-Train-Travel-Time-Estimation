@@ -234,24 +234,29 @@ F_t = df_TMD[df_TMD['STN_TYPE']=='Dest'].groupby('STATION')['TRAIN_CD'].apply(li
 
 F = list_for_station (train_to_number, station_to_number, F_t)
 
-############## E ##############
-E = [[] for _ in I]
-for _, row in df_TMD.iterrows():
-    s1 = station_to_number[row['STATION']]
-    s2 = station_to_number[row['TO_STN']]
-    i = train_to_number[row['TRAIN_CD']]
-    if row['STN_TYPE'] != 'Origin' or row['STN_TYPE'] != 'Dest':
-        try:
-            E[i].append(P.index((s1,s2)))
-        except ValueError:
-            E[i].append(P.index((s2,s1)))
-
 # track speed list
 track_speed = [100] * len(J)
 
-############## t ##############
-t = [[] for _ in I]
-
+############## t, E, T1, T2 ##############
+t = np.full((n_treni, len(J)), np.NaN)
+E = [[] for _ in I]
+T1 = [set() for _ in J]
+T2 = [set() for _ in J]
+for _, row in df_TMD.iterrows():
+    i = train_to_number[row['TRAIN_CD']]
+    s1 = station_to_number[row['STATION']]
+    s2 = station_to_number[row['TO_STN']]
+    if row['STN_TYPE'] != 'Dest':
+        try:
+            j = P.index((s1,s2))
+        except ValueError:
+            j = P.index((s2,s1))
+        E[i].append(j)
+        t[i,j] = distances[j]/min(track_speed[j], row['MAX_SPD'])
+        if row['DEP_DIR'] == 'E':
+            T2[j].add(i)
+        else:
+            T1[j].add(i)
 
 ############## a , d ##############
 
