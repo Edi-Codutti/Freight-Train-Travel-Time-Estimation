@@ -208,9 +208,11 @@ train_ids_low_prty = df_TMD[df_TMD['TRAIN_PRTY']=='L']['TRAIN_CD'].unique()
 L = [train_to_number[id] for id in train_ids_low_prty]
 
 ############## V ##############
-# V_t: lista di tuple : (treno, lista stazioni visitate)
-V_t = df_TMD.groupby('TRAIN_CD')['STATION'].apply(list).reset_index().values.tolist()
+# Filtro: escludi stazioni di tipo 'Origin' e 'Dest', ~df_TMD['STN_TYPE'].isin(['Origin', 'Dest']) restituisce un booleano True per tutte le righe in cui STN_TYPE non è né 'Origin' né 'Dest'.
+df_filtrato = df_TMD[~df_TMD['STN_TYPE'].isin(['Origin', 'Dest'])]
 
+# Ora raggruppa solo sulle righe filtrate
+V_t = df_filtrato.groupby('TRAIN_CD')['STATION'].apply(list).reset_index().values.tolist()
 # for train_id, stazioni in V_t:
 #     print(f"{train_id}: {stazioni}")
 
@@ -282,7 +284,8 @@ for train_id, station_list in f_t:
     
 
 ############## G ##############
-G_t = df_TMD.groupby('STATION')['TRAIN_CD'].apply(list).reset_index().values.tolist()
+
+G_t = df_filtrato.groupby('STATION')['TRAIN_CD'].apply(list).reset_index().values.tolist()
 # for stazioni, train_id in G_t:
 #     print(f"{stazioni}: {train_id}")
 
@@ -290,7 +293,7 @@ G = list_for_station (train_to_number, station_to_number, G_t)
 
 
 ############## Gp ##############
-Gp_t = df_TMD[df_TMD['WORK_ORDR_FLG']=='Y'].groupby('STATION')['TRAIN_CD'].apply(list).reset_index().values.tolist()
+Gp_t = df_filtrato[df_TMD['WORK_ORDR_FLG']=='Y'].groupby('STATION')['TRAIN_CD'].apply(list).reset_index().values.tolist()
 # for stazioni, train_id in Gp_t:
 #     print(f"{stazioni}: {train_id}")
 
@@ -316,7 +319,7 @@ F = list_for_station (train_to_number, station_to_number, F_t)
 
 
 ############## t, E, T1, T2 ##############
-t = np.full((n_treni, len(J)), np.NaN)
+t = np.full((n_treni, len(J)), np.nan)
 E = [[] for _ in I]
 T1 = [set() for _ in J]
 T2 = [set() for _ in J]
@@ -338,7 +341,7 @@ for _, row in df_TMD.iterrows():
 
 ############## a , d ##############
 
-# Matrice vuota con NaN (nessun arrivo)
+# Matrice vuota con nan (nessun arrivo)
 a = np.full((n_treni, n_staz), np.nan)
 
 for _, row in df_TMD.iterrows(): # row è tipo diz, iterrows() restituisce una tupla (index, row), ma non ci serve l'indice, quindi mettiamo _.
@@ -353,7 +356,7 @@ for _, row in df_TMD.iterrows(): # row è tipo diz, iterrows() restituisce una t
 
         a[train_idx, station_idx] = arrival_time
 
-# Matrice vuota con NaN (nessun arrivo)
+# Matrice vuota con nan (nessun arrivo)
 d = np.full((n_treni, n_staz), np.nan)
 
 for _, row in df_TMD.iterrows(): # row è tipo diz, iterrows() restituisce una tupla (index, row), ma non ci serve l'indice, quindi mettiamo _.
