@@ -112,6 +112,81 @@ for idx, row in df_TMD.iterrows():
         to_delete.append(idx)
 df_TMD = df_TMD.drop(index=to_delete)
 
+# associazione treno numero
+train_ids = df_TMD['TRAIN_CD'].unique()
+train_to_number = {int(train_id): i for i, train_id in enumerate(train_ids)}
+
+# track speed list
+track_speed = [100] * len(J)
+
+#conversione da data a ora  in decimali 
+df_TMD['PLAN_ARR_TM'] = (pd.to_datetime(df_TMD['PLAN_ARR_TM']).dt.hour +
+                        pd.to_datetime(df_TMD['PLAN_ARR_TM']).dt.minute / 60 +
+                        pd.to_datetime(df_TMD['PLAN_ARR_TM']).dt.second / 3600)
+
+df_TMD['PLAN_DEP_TM'] = (pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.hour +
+                        pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.minute / 60 +
+                        pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.second / 3600)
+
+nc_idx_13 = []
+nc_idx_23 = []
+
+for index, row in df_TMD.iterrows():
+    i = train_to_number[row['TRAIN_CD']]
+    s1 = station_to_number[row['STATION']]
+    if row['STN_TYPE'] != 'Dest':
+        s2 = station_to_number[row['TO_STN']]
+        try:
+            j = P.index((s1,s2))
+        except ValueError:
+            try:
+                j = P.index((s2,s1))
+            except ValueError:
+                if (s1 == 12) or (s1 == 14):
+                    nc_idx_13.append(index)
+                else:
+                    nc_idx_23.append(index)
+
+for idx in nc_idx_13:
+    
+    j = P.index((12,13)) if df_TMD['STATION'].loc[idx] == 'Bgn' else P.index((13,14))
+    t_j = distances[j]/min(track_speed[j], df_TMD['MAX_SPD'].loc[idx])
+    new_row = pd.DataFrame({'DATE': df_TMD['DATE'].loc[idx], 
+                            'TRAIN_CD': df_TMD['TRAIN_CD'].loc[idx], 
+                            'TRAIN_PRTY': df_TMD['TRAIN_PRTY'].loc[idx], 
+                            'DEP_DIR': df_TMD['DEP_DIR'].loc[idx], 
+                            'STATION': 'Bgnphm', 
+                            'STN_TYPE': 'Int', 
+                            'ORDER_#': 0, 
+                            'TO_STN': df_TMD['TO_STN'].loc[idx], 
+                            'PLAN_ARR_TM': (df_TMD['PLAN_DEP_TM'].loc[idx] + t_j), 
+                            'PLAN_DEP_TM': (df_TMD['PLAN_DEP_TM'].loc[idx] + t_j), 
+                            'MAX_SPD': df_TMD['MAX_SPD'].loc[idx], 
+                            'WORK_ORDR_FLG': np.nan, 
+                            'CREW_CHG_FLG': np.nan}, index = [idx + 0.5])
+    df_TMD = pd.concat([df_TMD, new_row])
+    df_TMD['TO_STN'].loc[idx] = 'Bgnphm'
+
+for idx in nc_idx_23:
+    
+    j = P.index((22,23)) if df_TMD['STATION'].loc[idx] == 'Tbge' else P.index((23,24))
+    t_j = distances[j]/min(track_speed[j], df_TMD['MAX_SPD'].loc[idx])
+    new_row = pd.DataFrame({'DATE': df_TMD['DATE'].loc[idx], 
+                            'TRAIN_CD': df_TMD['TRAIN_CD'].loc[idx], 
+                            'TRAIN_PRTY': df_TMD['TRAIN_PRTY'].loc[idx], 
+                            'DEP_DIR': df_TMD['DEP_DIR'].loc[idx], 
+                            'STATION': 'Tb', 
+                            'STN_TYPE': 'Int', 
+                            'ORDER_#': 0, 
+                            'TO_STN': df_TMD['TO_STN'].loc[idx], 
+                            'PLAN_ARR_TM': (df_TMD['PLAN_DEP_TM'].loc[idx] + t_j), 
+                            'PLAN_DEP_TM': (df_TMD['PLAN_DEP_TM'].loc[idx] + t_j), 
+                            'MAX_SPD': df_TMD['MAX_SPD'].loc[idx], 
+                            'WORK_ORDR_FLG': np.nan, 
+                            'CREW_CHG_FLG': np.nan}, index = [idx + 0.5])
+    df_TMD = pd.concat([df_TMD, new_row])
+    df_TMD['TO_STN'].loc[idx] = 'Tb'
+
 # stations with do/pu activities
 yard_act_stations_names = df_TMD[df_TMD['WORK_ORDR_FLG']=='Y']['STATION'].unique()
 yard_act_stations = [station_to_number[name] for name in yard_act_stations_names if name in station_to_number] # TODO: do we need 'if name in station_to_number'?
@@ -120,10 +195,6 @@ yard_act_stations = [station_to_number[name] for name in yard_act_stations_names
 # U = set of non yard stations having do/pu activities
 U = list(set(non_yard_stations) & set(yard_act_stations))
 
-
-# associazione treno numero
-train_ids = df_TMD['TRAIN_CD'].unique()
-train_to_number = {int(train_id): i for i, train_id in enumerate(train_ids)}
 
 ############## I ##############
 I = list(range(len(train_to_number)))
@@ -243,8 +314,6 @@ F_t = df_TMD[df_TMD['STN_TYPE']=='Dest'].groupby('STATION')['TRAIN_CD'].apply(li
 
 F = list_for_station (train_to_number, station_to_number, F_t)
 
-# track speed list
-track_speed = [100] * len(J)
 
 ############## t, E, T1, T2 ##############
 t = np.full((n_treni, len(J)), np.NaN)
@@ -268,15 +337,6 @@ for _, row in df_TMD.iterrows():
             T1[j].add(i)
 
 ############## a , d ##############
-
-#conversione da data a ora  in decimali 
-df_TMD['PLAN_ARR_TM'] = (pd.to_datetime(df_TMD['PLAN_ARR_TM']).dt.hour +
-                        pd.to_datetime(df_TMD['PLAN_ARR_TM']).dt.minute / 60 +
-                        pd.to_datetime(df_TMD['PLAN_ARR_TM']).dt.second / 3600)
-
-df_TMD['PLAN_DEP_TM'] = (pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.hour +
-                        pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.minute / 60 +
-                        pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.second / 3600)
 
 # Matrice vuota con NaN (nessun arrivo)
 a = np.full((n_treni, n_staz), np.nan)
