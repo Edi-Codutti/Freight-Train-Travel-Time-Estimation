@@ -107,8 +107,8 @@ df_TMD = df_TMD[df_TMD['DATE']=='2017-09-06'] # modify this to change date
 to_delete = []
 for idx, row in df_TMD.iterrows():
     if row['STATION'] == row['TO_STN']:
-        df_TMD['STN_TYPE'].iloc[idx+1] = 'Origin'
-        df_TMD['PLAN_ARR_TM'].iloc[idx+1] = np.nan
+        df_TMD.loc[idx+1, 'STN_TYPE'] = 'Origin'
+        df_TMD.loc[idx+1, 'PLAN_ARR_TM'] = np.nan
         to_delete.append(idx)
 df_TMD = df_TMD.drop(index=to_delete)
 
@@ -165,7 +165,7 @@ for idx in nc_idx_13:
                             'WORK_ORDR_FLG': np.nan, 
                             'CREW_CHG_FLG': np.nan}, index = [idx + 0.5])
     df_TMD = pd.concat([df_TMD, new_row])
-    df_TMD['TO_STN'].loc[idx] = 'Bgnphm'
+    df_TMD.loc[idx, 'TO_STN'] = 'Bgnphm'
 
 for idx in nc_idx_23:
     
@@ -185,7 +185,7 @@ for idx in nc_idx_23:
                             'WORK_ORDR_FLG': np.nan, 
                             'CREW_CHG_FLG': np.nan}, index = [idx + 0.5])
     df_TMD = pd.concat([df_TMD, new_row])
-    df_TMD['TO_STN'].loc[idx] = 'Tb'
+    df_TMD.loc[idx, 'TO_STN'] = 'Tb'
 
 # stations with do/pu activities
 yard_act_stations_names = df_TMD[df_TMD['WORK_ORDR_FLG']=='Y']['STATION'].unique()
