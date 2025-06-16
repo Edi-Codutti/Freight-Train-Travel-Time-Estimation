@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from solver import Solver
 
 
 def list_for_train (train_to_number, station_to_number, L_t):
@@ -78,7 +79,6 @@ df_TLEN = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Dist
 df_NTC = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Num Track Chart', nrows=45, usecols='A:E')
 
 distances = [-1 for _ in range(len(J))]
-print(len(distances))
 for j in range(len(distances)):
     s1_index, s2_index = P[j]
     s1_name = df_SOD['Station'].iloc[s1_index]
@@ -102,6 +102,15 @@ non_yard_stations = df_SOD[df_SOD['Yard_Flg']!='Y']['Station'].index.tolist()
 
 df_TMD = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Train Mvmt Data', nrows=8013, usecols='A:M')
 df_TMD = df_TMD[df_TMD['DATE']=='2017-09-06'] # modify this to change date
+
+# delete where STATION == TO_STN
+to_delete = []
+for idx, row in df_TMD.iterrows():
+    if row['STATION'] == row['TO_STN']:
+        df_TMD['STN_TYPE'].iloc[idx+1] = 'Origin'
+        df_TMD['PLAN_ARR_TM'].iloc[idx+1] = np.nan
+        to_delete.append(idx)
+df_TMD = df_TMD.drop(index=to_delete)
 
 # stations with do/pu activities
 yard_act_stations_names = df_TMD[df_TMD['WORK_ORDR_FLG']=='Y']['STATION'].unique()
@@ -245,8 +254,8 @@ T2 = [set() for _ in J]
 for _, row in df_TMD.iterrows():
     i = train_to_number[row['TRAIN_CD']]
     s1 = station_to_number[row['STATION']]
-    s2 = station_to_number[row['TO_STN']]
     if row['STN_TYPE'] != 'Dest':
+        s2 = station_to_number[row['TO_STN']]
         try:
             j = P.index((s1,s2))
         except ValueError:
@@ -329,3 +338,14 @@ A2 = []
 for i in range(len(P)) :
     if i not in non2arcs:
         A2.append(i)
+
+α = 5/60
+β = 30/60
+γ = 10/60
+θ = 15/60
+λ = 5
+τ = lambda a,b : min(a,b)
+M = 48
+
+solver = Solver(I, S, J, H, L, A1, A2, A4, B, U, V, C, W, Cp, K, E, P, o, f, G, Gp, O, F, T1, T2, a, d, t, n, m, α, β, γ, θ, λ, τ, M)
+solver.solve()
