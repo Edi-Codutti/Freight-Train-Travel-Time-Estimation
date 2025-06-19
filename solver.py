@@ -66,7 +66,7 @@ class Solver:
         q = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.O[s]) if i1<i2 ], vtype=gb.GRB.BINARY)
         r = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.F[s]) if i1!=i2 ], vtype=gb.GRB.BINARY)
         z = self.estimator.addVars([ (s,i) for s in self.S for i in self.G[s] if i not in self.Gp[s] ], vtype=gb.GRB.BINARY)
-        h = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in self.G[s] for i2 in self.G[s] if ((i1 not in self.Gp[s]) and (i2 not in self.Gp[s]) and (i1!=i2))], vtype=gb.GRB.BINARY)
+        h = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] - self.Gp[s]) for i2 in (self.G[s] - self.Gp[s]) if i1!=i2], vtype=gb.GRB.BINARY)
         w1 = self.estimator.addVars([ (j,i,k) for j in self.A4 for k in [1,2] for i in self.T1[j] ], vtype=gb.GRB.BINARY)
         w2 = self.estimator.addVars([ (j,i,k) for j in self.A4 for k in [1,2] for i in self.T2[j] ], vtype=gb.GRB.BINARY)
 
@@ -79,10 +79,11 @@ class Solver:
         self.estimator.addConstrs(( y[i,s] >= x[i,s] + self.β
                                    for i in self.I for s in self.C[i] ))
         self.estimator.addConstrs(( y[i,s] >= x[i,s] + self.γ
-                                   for i in self.I for s in self.W[i] if s != self.o[i]))
-        self.estimator.addConstrs(( y[i,s] >= self.d[i,s] + self.γ for i in self.I for s in [self.o[i]] if s in self.W[i] ))
+                                   for i in self.I for s in (self.W[i] - {self.o[i]}) ))
+        self.estimator.addConstrs(( y[i,self.o[i]] >= self.d[i,self.o[i]] + self.γ
+                                   for i in self.I if self.o[i] in self.W[i] ))
         self.estimator.addConstrs(( y[i,s] >= x[i,s] + self.α * z[s,i]
-                                   for i in self.I for s in self.V[i].intersection(self.B).difference(self.C[i])) )
+                                   for i in self.I for s in ((self.V[i] & self.B) - self.C[i] )) )
         self.estimator.addConstrs(( y[i,s] >= self.d[i,s]
                                    for i in self.I for s in self.K[i] ))
         self.estimator.addConstrs(( x[i,self.Pi(i,j,1)] == y[i,self.Pi(i,j,0)] + self.t[i,j]
@@ -111,19 +112,19 @@ class Solver:
         # Siding and overtake constraints
         print("Adding siding and overtake constraints...")
         self.estimator.addConstrs(( z[s,i] == 0
-                                   for s in self.S for i in self.G[s] if ((s not in self.B) and (i not in self.Gp[s]))))
+                                   for s in (self.S - self.B) for i in (self.G[s] - self.Gp[s]) ))
         self.estimator.addConstrs(( h[s,i1,i2] >= (1-p[s,i1,i2]) - r[s,i2,i1] - z[s,i2]
-                                   for s in self.S for i1 in self.G[s] for i2 in self.G[s] if ((i1 not in self.Gp[s]) and (i2 not in self.Gp[s]) and (i1<i2)) ))
+                                   for s in self.S for i1 in (self.G[s] - self.Gp[s]) for i2 in (self.G[s] - self.Gp[s]) if i1<i2 ))
         self.estimator.addConstrs(( h[s,i1,i2] >= p[s,i2,i1] - r[s,i2,i1] - z[s,i2]
-                                   for s in self.S for i1 in self.G[s] for i2 in self.G[s] if ((i1 not in self.Gp[s]) and (i2 not in self.Gp[s]) and (i2<i1)) ))
-        self.estimator.addConstrs(( z[s,i1] >= 1 + gb.quicksum(h[s,i1,i2] for i2 in self.G[s] if i2 not in self.Gp[s] and i2 != i1) - self.m[s]
-                                   for s in self.S for i1 in self.G[s] if i1 not in self.Gp[s] ))
+                                   for s in self.S for i1 in (self.G[s] - self.Gp[s]) for i2 in (self.G[s] - self.Gp[s]) if i2<i1 ))
+        self.estimator.addConstrs(( z[s,i1] >= 1 + gb.quicksum(h[s,i1,i2] for i2 in (self.G[s] - self.Gp[s]) if i2 != i1) - self.m[s]
+                                   for s in self.S for i1 in (self.G[s] - self.Gp[s]) ))
         self.estimator.addConstrs(( z[s,i1] <=
                                                 self.n[s] + self.m[s]
-                                                - gb.quicksum(1-p[s,i1,i2] for i2 in self.G[s] if i2 not in self.Gp[s] and i1 < i2)
-                                                - gb.quicksum(p[s,i2,i1] for i2 in self.G[s] if i2 not in self.Gp[s] and i2 < i1)
-                                                + gb.quicksum(r[s,i2,i1] for i2 in self.G[s] if i2 not in self.Gp[s] and i2 != i1)
-                                    for s in self.B for i1 in self.G[s] if i1 not in self.Gp[s] ))
+                                                - gb.quicksum(1-p[s,i1,i2] for i2 in (self.G[s] - self.Gp[s]) if i1 < i2)
+                                                - gb.quicksum(p[s,i2,i1] for i2 in (self.G[s] - self.Gp[s]) if i2 < i1)
+                                                + gb.quicksum(r[s,i2,i1] for i2 in (self.G[s] - self.Gp[s]) if i2 != i1)
+                                    for s in self.B for i1 in (self.G[s] - self.Gp[s]) ))
         
         # Single track capacity and headway constraints
         print("Adding single track capacity and headway constraints...")
