@@ -4,31 +4,31 @@ import types
 
 class Solver:
     def __init__(self, I, S, J, H, L, A1, A2, A4, B, U, V, C, W, Cp, K, E, P, o, f, G, Gp, O, F, T1, T2, a, d, t, n, m, α, β, γ, θ, λ, τ, M):
-        self.I = I
-        self.S = S
-        self.J = J
-        self.H = H
-        self.L = L
-        self.A1 = A1
-        self.A2 = A2
-        self.A4 = A4
-        self.B = B
-        self.U = U
-        self.V = V
-        self.C = C
-        self.W = W
-        self.Cp = Cp
-        self.K = K
-        self.E = E
+        self.I = set(I)
+        self.S = set(S)
+        self.J = set(J)
+        self.H = set(H)
+        self.L = set(L)
+        self.A1 = set(A1)
+        self.A2 = set(A2)
+        self.A4 = set(A4)
+        self.B = set(B)    # checked
+        self.U = set(U)
+        self.V = [set(lista) for lista in V]   # checked
+        self.C = [set(lista) for lista in C]   # checked
+        self.W = [set(lista) for lista in W]   
+        self.Cp = [set(lista) for lista in Cp]   # TO CHECK, WHY NOT USED ?
+        self.K = [set(lista) for lista in K]   # checked
+        self.E = [set(lista) for lista in E]   
         self.P = P
         self.o = o
         self.f = f
-        self.G = G
-        self.Gp = Gp
-        self.O = O
-        self.F = F
-        self.T1 = T1
-        self.T2 = T2
+        self.G = [set(lista) for lista in G]   # checked
+        self.Gp = [set(lista) for lista in Gp]   # checked
+        self.O = [set(lista) for lista in O]   # checked
+        self.F = [set(lista) for lista in F]   # checked
+        self.T1 = [set(lista) for lista in T1]   
+        self.T2 = [set(lista) for lista in T2]   
         self.a = a
         self.d = d
         self.t = t
@@ -58,13 +58,13 @@ class Solver:
     def solve(self):
         # Decision Variables
         print("Adding decision variables...")
-        x = self.estimator.addVars([ (i,s) for i in self.I for s in (self.V[i]+[self.f[i]]) ], vtype=gb.GRB.CONTINUOUS)
-        y = self.estimator.addVars([ (i,s) for i in self.I for s in (self.V[i]+[self.o[i]]) ], vtype=gb.GRB.CONTINUOUS)
-        δp = self.estimator.addVars([ (i,s) for i in self.I for s in (self.K[i]+[self.f[i]]) ], vtype=gb.GRB.CONTINUOUS)
-        δm = self.estimator.addVars([ (i,s) for i in self.I for s in (self.K[i]+[self.f[i]]) ], vtype=gb.GRB.CONTINUOUS)
-        p = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s]+self.F[s]) for i2 in (self.G[s]+self.F[s]) if i1<i2 ], vtype=gb.GRB.BINARY)
-        q = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s]+self.O[s]) for i2 in (self.G[s]+self.O[s]) if i1<i2 ], vtype=gb.GRB.BINARY)
-        r = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s]+self.O[s]) for i2 in (self.G[s]+self.F[s]) if i1!=i2 ], vtype=gb.GRB.BINARY)
+        x = self.estimator.addVars([ (i,s) for i in self.I for s in (self.V[i] | {self.f[i]})], vtype=gb.GRB.CONTINUOUS)
+        y = self.estimator.addVars([ (i,s) for i in self.I for s in (self.V[i] | {self.o[i]}) ], vtype=gb.GRB.CONTINUOUS)
+        δp = self.estimator.addVars([ (i,s) for i in self.I for s in (self.K[i] | {self.f[i]}) ], vtype=gb.GRB.CONTINUOUS)
+        δm = self.estimator.addVars([ (i,s) for i in self.I for s in (self.K[i] | {self.f[i]}) ], vtype=gb.GRB.CONTINUOUS)
+        p = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] | self.F[s]) for i2 in (self.G[s] | self.F[s]) if i1<i2 ], vtype=gb.GRB.BINARY)
+        q = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.O[s]) if i1<i2 ], vtype=gb.GRB.BINARY)
+        r = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.F[s]) if i1!=i2 ], vtype=gb.GRB.BINARY)
         z = self.estimator.addVars([ (s,i) for s in self.S for i in self.G[s] if i not in self.Gp[s] ], vtype=gb.GRB.BINARY)
         h = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in self.G[s] for i2 in self.G[s] if ((i1 not in self.Gp[s]) and (i2 not in self.Gp[s]) and (i1!=i2))], vtype=gb.GRB.BINARY)
         w1 = self.estimator.addVars([ (j,i,k) for j in self.A4 for k in [1,2] for i in self.T1[j] ], vtype=gb.GRB.BINARY)
@@ -82,7 +82,7 @@ class Solver:
                                    for i in self.I for s in self.W[i] if s != self.o[i]))
         self.estimator.addConstrs(( y[i,s] >= self.d[i,s] + self.γ for i in self.I for s in [self.o[i]] if s in self.W[i] ))
         self.estimator.addConstrs(( y[i,s] >= x[i,s] + self.α * z[s,i]
-                                   for i in self.I for s in set(self.V[i]).intersection(set(self.B)).difference(set(self.C[i])) ))
+                                   for i in self.I for s in self.V[i].intersection(self.B).difference(self.C[i])) )
         self.estimator.addConstrs(( y[i,s] >= self.d[i,s]
                                    for i in self.I for s in self.K[i] ))
         self.estimator.addConstrs(( x[i,self.Pi(i,j,1)] == y[i,self.Pi(i,j,0)] + self.t[i,j]
@@ -91,22 +91,22 @@ class Solver:
         # Deviation calculation constraints
         print("Adding deviation calculation constraints...")
         self.estimator.addConstrs(( δp[i,s]-δm[i,s] == x[i,s]-self.a[i,s]
-                                   for i in self.I for s in (self.K[i]+[self.f[i]]) ))
+                                   for i in self.I for s in (self.K[i] | {self.f[i]}) ))
 
         # Arrival and departure order constraints
         print("Adding arrival and departure order constraints...")
         self.estimator.addConstrs(( x[i2,s]-x[i1,s] <= self.M * p[s,i1,i2]
-                                   for s in self.S for i1 in (self.G[s]+self.F[s]) for i2 in (self.G[s]+self.F[s]) if i1<i2 ))
+                                   for s in self.S for i1 in (self.G[s] | self.F[s]) for i2 in (self.G[s] | self.F[s]) if i1<i2 ))
         self.estimator.addConstrs(( x[i1,s]-x[i2,s] <= self.M * (1-p[s,i1,i2])
-                                   for s in self.S for i1 in (self.G[s]+self.F[s]) for i2 in (self.G[s]+self.F[s]) if i1<i2 ))
+                                   for s in self.S for i1 in (self.G[s] | self.F[s]) for i2 in (self.G[s] | self.F[s]) if i1<i2 ))
         self.estimator.addConstrs(( y[i2,s]-y[i1,s] <= self.M * q[s,i1,i2]
-                                   for s in self.S for i1 in (self.G[s]+self.O[s]) for i2 in (self.G[s]+self.O[s]) if i1<i2 ))
+                                   for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.O[s]) if i1<i2 ))
         self.estimator.addConstrs(( y[i1,s]-y[i2,s] <= self.M * (1-q[s,i1,i2])
-                                   for s in self.S for i1 in (self.G[s]+self.O[s]) for i2 in (self.G[s]+self.O[s]) if i1<i2 ))
+                                   for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.O[s]) if i1<i2 ))
         self.estimator.addConstrs(( x[i2,s]-y[i1,s] <= self.M * r[s,i1,i2]
-                                   for s in self.S for i1 in (self.G[s]+self.O[s]) for i2 in (self.G[s]+self.F[s]) if i1!=i2 ))
+                                   for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.F[s]) if i1!=i2 ))
         self.estimator.addConstrs(( y[i1,s]-x[i2,s] <= self.M * (1-r[s,i1,i2])
-                                   for s in self.S for i1 in (self.G[s]+self.O[s]) for i2 in (self.G[s]+self.F[s]) if i1!=i2 ))
+                                   for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.F[s]) if i1!=i2 ))
 
         # Siding and overtake constraints
         print("Adding siding and overtake constraints...")
@@ -188,8 +188,8 @@ class Solver:
         # Objective function
         print("Adding objective function...")
         self.estimator.setObjective(
-            ( self.λ * gb.quicksum(δp[i,s] for i in self.H for s in (self.K[i]+[self.f[i]]))
-            + gb.quicksum(δp[i,s] for i in self.L for s in (self.K[i]+[self.f[i]])) ),
+            ( self.λ * gb.quicksum(δp[i,s] for i in self.H for s in (self.K[i] | {self.f[i]}))
+            + gb.quicksum(δp[i,s] for i in self.L for s in (self.K[i] | {self.f[i]})) ),
             gb.GRB.MINIMIZE
         )
 

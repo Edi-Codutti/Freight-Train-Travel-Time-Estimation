@@ -100,7 +100,7 @@ B = df_SOD.query("Yard_Flg == 'Y' | Siding_Flg == 'Y'")['Station'].index.to_list
 non_yard_stations_names = df_SOD[df_SOD['Yard_Flg']!='Y']['Station'].tolist()
 non_yard_stations = df_SOD[df_SOD['Yard_Flg']!='Y']['Station'].index.tolist()
 
-df_TMD = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Train Mvmt Data', nrows=1004, usecols='A:M')
+df_TMD = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Train Mvmt Data', nrows=107, usecols='A:M')
 df_TMD = df_TMD[df_TMD['DATE']=='2017-09-06'] # modify this to change date
 
 # delete where STATION == TO_STN
