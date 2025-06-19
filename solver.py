@@ -57,6 +57,7 @@ class Solver:
 
     def solve(self):
         # Decision Variables
+        print("Adding decision variables...")
         x = self.estimator.addVars([ (i,s) for i in self.I for s in (self.V[i]+[self.f[i]]) ], vtype=gb.GRB.CONTINUOUS)
         y = self.estimator.addVars([ (i,s) for i in self.I for s in (self.V[i]+[self.o[i]]) ], vtype=gb.GRB.CONTINUOUS)
         δp = self.estimator.addVars([ (i,s) for i in self.I for s in (self.K[i]+[self.f[i]]) ], vtype=gb.GRB.CONTINUOUS)
@@ -70,6 +71,7 @@ class Solver:
         w2 = self.estimator.addVars([ (j,i,k) for j in self.A4 for k in [1,2] for i in self.T2[j] ], vtype=gb.GRB.BINARY)
 
         # Departure and arrival constraints
+        print("Adding departure and arrival constraints...")
         self.estimator.addConstrs(( y[i,self.o[i]] >= self.d[i,self.o[i]] + self.θ
                                    for i in self.I ))
         self.estimator.addConstrs(( y[i,s] >= x[i,s] + self.d[i,s] - self.a[i,s]
@@ -77,7 +79,8 @@ class Solver:
         self.estimator.addConstrs(( y[i,s] >= x[i,s] + self.β
                                    for i in self.I for s in self.C[i] ))
         self.estimator.addConstrs(( y[i,s] >= x[i,s] + self.γ
-                                   for i in self.I for s in self.W[i] ))
+                                   for i in self.I for s in self.W[i] if s != self.o[i]))
+        self.estimator.addConstrs(( y[i,s] >= self.d[i,s] + self.γ for i in self.I for s in [self.o[i]] if s in self.W[i] ))
         self.estimator.addConstrs(( y[i,s] >= x[i,s] + self.α * z[s,i]
                                    for i in self.I for s in set(self.V[i]).intersection(set(self.B)).difference(set(self.C[i])) ))
         self.estimator.addConstrs(( y[i,s] >= self.d[i,s]
@@ -86,10 +89,12 @@ class Solver:
                                    for i in self.I for j in self.E[i] ))
 
         # Deviation calculation constraints
+        print("Adding deviation calculation constraints...")
         self.estimator.addConstrs(( δp[i,s]-δm[i,s] == x[i,s]-self.a[i,s]
                                    for i in self.I for s in (self.K[i]+[self.f[i]]) ))
 
         # Arrival and departure order constraints
+        print("Adding arrival and departure order constraints...")
         self.estimator.addConstrs(( x[i2,s]-x[i1,s] <= self.M * p[s,i1,i2]
                                    for s in self.S for i1 in (self.G[s]+self.F[s]) for i2 in (self.G[s]+self.F[s]) if i1<i2 ))
         self.estimator.addConstrs(( x[i1,s]-x[i2,s] <= self.M * (1-p[s,i1,i2])
@@ -104,6 +109,7 @@ class Solver:
                                    for s in self.S for i1 in (self.G[s]+self.O[s]) for i2 in (self.G[s]+self.F[s]) if i1!=i2 ))
 
         # Siding and overtake constraints
+        print("Adding siding and overtake constraints...")
         self.estimator.addConstrs(( z[s,i] == 0
                                    for s in self.S for i in self.G[s] if ((s not in self.B) and (i not in self.Gp[s]))))
         self.estimator.addConstrs(( h[s,i1,i2] >= (1-p[s,i1,i2]) - r[s,i2,i1] - z[s,i2]
@@ -120,6 +126,7 @@ class Solver:
                                     for s in self.B for i1 in self.G[s] if i1 not in self.Gp[s] ))
         
         # Single track capacity and headway constraints
+        print("Adding single track capacity and headway constraints...")
         self.estimator.addConstrs(( y[i1,self.Pi(i1,j,0)] >= x[i2,self.Pi(i2,j,0)] - self.M * (1-r[self.Pi(i1,j,1),i2,i1])
                                    for j in self.A1 for i1 in self.T1[j] for i2 in self.T2[j] ))
         self.estimator.addConstrs(( y[i2,self.Pi(i2,j,1)] >= x[i1,self.Pi(i1,j,1)] - self.M * (1-r[self.Pi(i1,j,0),i1,i2])
@@ -132,12 +139,13 @@ class Solver:
                                    for j in self.A1 for i1 in self.T1[j] for i2 in self.T1[j] if i2 < i1 ))
         self.estimator.addConstrs(( y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)] + self.tau(self.t[i1,j],self.t[i2,j]) - min(self.t[i1,j], self.t[i2,j])
                                     - self.M * q[self.Pi(i1,j,1), i1, i2]
-                                   for j in self.A1 for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2] ))
+                                   for j in self.A1 for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i1,j,1) != self.f[i2] and self.Pi(i2,j,0) != self.o[i2] ))
         self.estimator.addConstrs(( y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)] + self.tau(self.t[i1,j],self.t[i2,j]) - min(self.t[i1,j], self.t[i2,j])
                                     - self.M * (1-q[self.Pi(i1,j,1), i2, i1])
                                    for j in self.A1 for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2] ))
         
         # Double track and headway constraints
+        print("Adding double track capacity and headway constraints...")
         self.estimator.addConstrs(( y[i1, self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)] + self.tau(self.t[i1,j],self.t[i2,j]) - min(self.t[i1,j], self.t[i2,j])
                                     - self.M * q[self.Pi(i1,j,0), i1, i2]
                                    for j in self.A2 for i1 in self.T1[j] for i2 in self.T1[j] if i1 < i2 ))
@@ -146,12 +154,13 @@ class Solver:
                                    for j in self.A2 for i1 in self.T1[j] for i2 in self.T1[j] if i2 < i1 ))
         self.estimator.addConstrs(( y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)] + self.tau(self.t[i1,j],self.t[i2,j]) - min(self.t[i1,j], self.t[i2,j])
                                     - self.M * q[self.Pi(i1,j,1), i1, i2]
-                                   for j in self.A2 for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2] ))
+                                   for j in self.A2 for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i1,j,1) != self.f[i2] and self.Pi(i2,j,0) != self.o[i2] ))
         self.estimator.addConstrs(( y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)] + self.tau(self.t[i1,j],self.t[i2,j]) - min(self.t[i1,j], self.t[i2,j])
                                     - self.M * (1-q[self.Pi(i1,j,1), i2, i1])
-                                   for j in self.A2 for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2]))
+                                   for j in self.A2 for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i1,j,1) != self.f[i2] and self.Pi(i2,j,0) != self.o[i2]))
         
         # Quadruple track and headway constraints
+        print("Adding quadruple track capacity and headway constraints...")
         self.estimator.addConstrs(( gb.quicksum(w1[j,i,k] for k in [1,2]) == 1
                                    for j in self.A4 for i in self.T1[j] ))
         self.estimator.addConstrs(( gb.quicksum(w2[j,i,k] for k in [1,2]) == 1
@@ -162,20 +171,22 @@ class Solver:
         self.estimator.addConstrs(( y[i1,self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)] + self.tau(self.t[i1,j],self.t[i2,j]) - min(self.t[i1,j], self.t[i2,j])
                                     - self.M * (3 - q[self.Pi(i1,j,0), i2, i1] - w1[j,i1,k] - w1[j,i2,k])
                                     for j in self.A4 for k in [1,2] for i1 in self.T1[j] for i2 in self.T1[j] if i2 < i1 ))
-        self.estimator.addConstrs(( y[i1,self.P[j][2]] >= x[i2, self.Pi(i2,j,0)] + self.tau(self.t[i1,j],self.t[i2,j]) - min(self.t[i1,j], self.t[i2,j])
+        self.estimator.addConstrs(( y[i1,self.Pi(i1, j, 1)] >= x[i2, self.Pi(i2,j,0)] + self.tau(self.t[i1,j],self.t[i2,j]) - min(self.t[i1,j], self.t[i2,j])
                                     - self.M * (2 + q[self.Pi(i1,j,1), i1, i2] - w2[j,i1,k] - w2[j,i2,k])
-                                    for j in self.A4 for k in [1,2] for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 ))
+                                    for j in self.A4 for k in [1,2] for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i1,j,1) != self.f[i2] and self.Pi(i2,j,0) != self.o[i2]))
         self.estimator.addConstrs(( y[i1,self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)] + self.tau(self.t[i1,j],self.t[i2,j]) - min(self.t[i1,j], self.t[i2,j])
                                     - self.M * (3 - q[self.Pi(i1,j,1), i2, i1] - w2[j,i1,k] - w2[j,i2,k])
-                                    for j in self.A4 for k in [1,2] for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1 ))
+                                    for j in self.A4 for k in [1,2] for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i1,j,1) != self.f[i2] and self.Pi(i2,j,0) != self.o[i2]))
         
         # Drop off/Pick up capacity constraint for non-yard stations
+        print("Adding drop off/Pick up capacity constraint for non-yard stations...")
         self.estimator.addConstrs(( x[i1,s] >= y[i2,s] - self.M * p[s,i1,i2]
                                    for s in self.U for i1 in self.Gp[s] for i2 in self.Gp[s] if i1 < i2 ))
         self.estimator.addConstrs(( x[i1,s] >= y[i2,s] - self.M * (1-p[s,i2,i1])
                                    for s in self.U for i1 in self.Gp[s] for i2 in self.Gp[s] if i2 < i1 ))
         
         # Objective function
+        print("Adding objective function...")
         self.estimator.setObjective(
             ( self.λ * gb.quicksum(δp[i,s] for i in self.H for s in (self.K[i]+[self.f[i]]))
             + gb.quicksum(δp[i,s] for i in self.L for s in (self.K[i]+[self.f[i]])) ),
@@ -183,8 +194,9 @@ class Solver:
         )
 
         # Run
+        print("Starting...")
         self.estimator.optimize()
-
+"""
         for i in self.I:
             for s in self.V[i]+[self.f[i]]:
                 print(f"x[{i},{s}]={x[i,s].X}")
@@ -192,3 +204,4 @@ class Solver:
         for i in self.I:
             for s in self.V[i]+[self.o[i]]:
                 print(f"y[{i},{s}]={y[i,s].X}")
+"""
