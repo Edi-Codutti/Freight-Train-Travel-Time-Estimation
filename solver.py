@@ -58,17 +58,30 @@ class Solver:
     def solve(self):
         # Decision Variables
         print("Adding decision variables...")
-        x = self.estimator.addVars([ (i,s) for i in self.I for s in (self.V[i] | {self.f[i]})], vtype=gb.GRB.CONTINUOUS)
-        y = self.estimator.addVars([ (i,s) for i in self.I for s in (self.V[i] | {self.o[i]}) ], vtype=gb.GRB.CONTINUOUS)
-        δp = self.estimator.addVars([ (i,s) for i in self.I for s in (self.K[i] | {self.f[i]}) ], vtype=gb.GRB.CONTINUOUS)
-        δm = self.estimator.addVars([ (i,s) for i in self.I for s in (self.K[i] | {self.f[i]}) ], vtype=gb.GRB.CONTINUOUS)
-        p = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] | self.F[s]) for i2 in (self.G[s] | self.F[s]) if i1<i2 ], vtype=gb.GRB.BINARY)
-        q = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.O[s]) if i1<i2 ], vtype=gb.GRB.BINARY)
-        r = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.F[s]) if i1!=i2 ], vtype=gb.GRB.BINARY)
-        z = self.estimator.addVars([ (s,i) for s in self.S for i in self.G[s] if i not in self.Gp[s] ], vtype=gb.GRB.BINARY)
-        h = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] - self.Gp[s]) for i2 in (self.G[s] - self.Gp[s]) if i1!=i2], vtype=gb.GRB.BINARY)
-        w1 = self.estimator.addVars([ (j,i,k) for j in self.A4 for k in [1,2] for i in self.T1[j] ], vtype=gb.GRB.BINARY)
-        w2 = self.estimator.addVars([ (j,i,k) for j in self.A4 for k in [1,2] for i in self.T2[j] ], vtype=gb.GRB.BINARY)
+        x = self.estimator.addVars([ (i,s) for i in self.I for s in (self.V[i] | {self.f[i]}) ],
+                                   vtype=gb.GRB.CONTINUOUS, name='x')
+        y = self.estimator.addVars([ (i,s) for i in self.I for s in (self.V[i] | {self.o[i]}) ],
+                                   vtype=gb.GRB.CONTINUOUS, name='y')
+        δp = self.estimator.addVars([ (i,s) for i in self.I for s in (self.K[i] | {self.f[i]}) ],
+                                    vtype=gb.GRB.CONTINUOUS, name='δp')
+        δm = self.estimator.addVars([ (i,s) for i in self.I for s in (self.K[i] | {self.f[i]}) ],
+                                    vtype=gb.GRB.CONTINUOUS, name='δm')
+        p = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] | self.F[s]) for i2 in (self.G[s] | self.F[s]) if i1<i2 ],
+                                   vtype=gb.GRB.BINARY, name='p')
+        q = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.O[s]) if i1<i2 ],
+                                   vtype=gb.GRB.BINARY, name='q')
+        r = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.F[s]) if i1!=i2 ],
+                                   vtype=gb.GRB.BINARY, name='r')
+        z = self.estimator.addVars([ (s,i) for s in self.S for i in self.G[s] if i not in self.Gp[s] ],
+                                   vtype=gb.GRB.BINARY, name='z')
+        h = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] - self.Gp[s]) for i2 in (self.G[s] - self.Gp[s]) if i1!=i2],
+                                   vtype=gb.GRB.BINARY, name='h')
+        w1 = self.estimator.addVars([ (j,i,k) for j in self.A4 for k in [1,2] for i in self.T1[j] ],
+                                    vtype=gb.GRB.BINARY, name='w1')
+        w2 = self.estimator.addVars([ (j,i,k) for j in self.A4 for k in [1,2] for i in self.T2[j] ],
+                                    vtype=gb.GRB.BINARY, name='w2')
+        
+        self._vars = {'x': x, 'y': y, 'δp': δp, 'δm': δm, 'p': p, 'q': q, 'r': r, 'z': z, 'h': h, 'w1': w1, 'w2': w2}
 
         # Departure and arrival constraints
         print("Adding departure and arrival constraints...")
@@ -194,10 +207,14 @@ class Solver:
             gb.GRB.MINIMIZE
         )
 
+        # Parameters
+        self.estimator.Params.LazyConstraints = 1
+        self.estimator.Params.MIPGap = 0.01
+
         # Run
         print("Starting...")
         self.estimator.optimize()
-"""
+        """
         for i in self.I:
             for s in self.V[i]+[self.f[i]]:
                 print(f"x[{i},{s}]={x[i,s].X}")
@@ -205,4 +222,33 @@ class Solver:
         for i in self.I:
             for s in self.V[i]+[self.o[i]]:
                 print(f"y[{i},{s}]={y[i,s].X}")
-"""
+        """
+
+    def callback(self, model:gb.Model, where):
+        if where == gb.GRB.Callback.MIPSOL:
+            vars = model.cbGetSolution(self._vars)
+            x = vars['x']
+            y = vars['y']
+            δp = vars['δp']
+            δm = vars['δm']
+            p = vars['p']
+            q = vars['q']
+            r = vars['r']
+            z = vars['z']
+            h = vars['h']
+            w1 = vars['w1']
+            w2 = vars['w2']
+            # 16
+            try:
+                for s in self.S:
+                    for i1 in (self.G[s] - self.Gp[s]):
+                        for i2 in (self.G[s] - self.Gp[s]):
+                            if i1 < i2:
+                                if not h[s, i1, i2] >= (1-p[s,i1,i2]) - r[s,i2,i1] - z[s,i2]:
+                                    model.cbLazy((h[s,i1,i2] >= (1-p[s,i1,i2]) - r[s,i2,i1] - z[s,i2]
+                                                    for s in self.S
+                                                    for i1 in (self.G[s] - self.Gp[s])
+                                                    for i2 in (self.G[s] - self.Gp[s])
+                                                    if i1<i2))
+                                    raise StopIteration
+            except StopIteration: pass
