@@ -14,7 +14,6 @@ U = [7]
 V = [[i for i in range(1, 13)], [i for i in range(1, 13)], [i for i in range(1, 13)]]
 C = [[], [2], [7]]
 W = [[2], [1], [2]]
-Cp = [[], [], [7]]
 K = [[2], [1, 2, 8], [7, 2]]
 E = [list(range(13)), list(range(13)), list(range(13))]
 P = [(0,1), (1,2), (2,3), (3,4), (4,5), (5,6), (6,7), (7,8), (8,9), (9,10), (10,11), (11,12), (12,13)]
@@ -89,7 +88,7 @@ m = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1]
 τ = lambda a,b : min(a,b)
 M = 48
 
-solver = Solver(I, S, J, H, L, A1, A2, A4, B, U, V, C, W, Cp, K, E, P, o, f, G, Gp, O, F, T1, T2, a, d, t, n, m, α, β, γ, θ, λ, τ, M)
+solver = Solver(I, S, J, H, L, A1, A2, A4, B, U, V, C, W, K, E, P, o, f, G, Gp, O, F, T1, T2, a, d, t, n, m, α, β, γ, θ, λ, τ, M)
 solver.solve()
 
 

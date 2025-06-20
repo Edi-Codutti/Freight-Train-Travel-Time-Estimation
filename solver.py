@@ -1,9 +1,8 @@
 import gurobipy as gb
-import numpy as np
 import types
 
 class Solver:
-  def __init__(self, I, S, J, H, L, A1, A2, A4, B, U, V, C, W, Cp, K, E, P, o, f, G, Gp, O, F, T1, T2, a, d, t, n, m, α, β, γ, θ, λ, τ, M):
+  def __init__(self, I, S, J, H, L, A1, A2, A4, B, U, V, C, W, K, E, P, o, f, G, Gp, O, F, T1, T2, a, d, t, n, m, α, β, γ, θ, λ, τ, M):
     self.I = set(I)
     self.S = set(S)
     self.J = set(J)
@@ -12,21 +11,20 @@ class Solver:
     self.A1 = set(A1)
     self.A2 = set(A2)
     self.A4 = set(A4)
-    self.B = set(B)  # checked
+    self.B = set(B)
     self.U = set(U)
-    self.V = [set(lista) for lista in V]   # checked
-    self.C = [set(lista) for lista in C]   # checked
+    self.V = [set(lista) for lista in V]
+    self.C = [set(lista) for lista in C]
     self.W = [set(lista) for lista in W]   
-    self.Cp = [set(lista) for lista in Cp]   # TO CHECK, WHY NOT USED ?
-    self.K = [set(lista) for lista in K]   # checked
+    self.K = [set(lista) for lista in K]
     self.E = [set(lista) for lista in E]   
     self.P = P
     self.o = o
     self.f = f
-    self.G = [set(lista) for lista in G]   # checked
-    self.Gp = [set(lista) for lista in Gp]   # checked
-    self.O = [set(lista) for lista in O]   # checked
-    self.F = [set(lista) for lista in F]   # checked
+    self.G = [set(lista) for lista in G]
+    self.Gp = [set(lista) for lista in Gp]
+    self.O = [set(lista) for lista in O]
+    self.F = [set(lista) for lista in F]
     self.T1 = [set(lista) for lista in T1]   
     self.T2 = [set(lista) for lista in T2]   
     self.a = a
@@ -85,52 +83,67 @@ class Solver:
 
     # Departure and arrival constraints
     print("Adding departure and arrival constraints...")
+    # 1
     self.estimator.addConstrs(( y[i,self.o[i]] >= self.d[i,self.o[i]] + self.θ
                    for i in self.I ))
+    # 2
     self.estimator.addConstrs(( y[i,s] >= x[i,s] + self.d[i,s] - self.a[i,s]
                    for i in self.I for s in self.V[i] ))
+    # 3
     self.estimator.addConstrs(( y[i,s] >= x[i,s] + self.β
                    for i in self.I for s in self.C[i] ))
+    # 4
     self.estimator.addConstrs(( y[i,s] >= x[i,s] + self.γ
                    for i in self.I for s in (self.W[i] - {self.o[i]}) ))
-    self.estimator.addConstrs(( y[i,self.o[i]] >= self.d[i,self.o[i]] + self.γ
-                   for i in self.I if self.o[i] in self.W[i] ))
+    # 5
     self.estimator.addConstrs(( y[i,s] >= x[i,s] + self.α * z[s,i]
                    for i in self.I for s in ((self.V[i] & self.B) - self.C[i] )) )
+    # 6
     self.estimator.addConstrs(( y[i,s] >= self.d[i,s]
                    for i in self.I for s in self.K[i] ))
+    # 7
     self.estimator.addConstrs(( x[i,self.Pi(i,j,1)] == y[i,self.Pi(i,j,0)] + self.t[i,j]
                    for i in self.I for j in self.E[i] ))
 
     # Deviation calculation constraints
     print("Adding deviation calculation constraints...")
+    # 8
     self.estimator.addConstrs(( δp[i,s]-δm[i,s] == x[i,s]-self.a[i,s]
                    for i in self.I for s in (self.K[i] | {self.f[i]}) ))
 
     # Arrival and departure order constraints
     print("Adding arrival and departure order constraints...")
+    # 9
     self.estimator.addConstrs(( x[i2,s]-x[i1,s] <= self.M * p[s,i1,i2]
                    for s in self.S for i1 in (self.G[s] | self.F[s]) for i2 in (self.G[s] | self.F[s]) if i1<i2 ))
+    # 10
     self.estimator.addConstrs(( x[i1,s]-x[i2,s] <= self.M * (1-p[s,i1,i2])
                    for s in self.S for i1 in (self.G[s] | self.F[s]) for i2 in (self.G[s] | self.F[s]) if i1<i2 ))
+    # 11
     self.estimator.addConstrs(( y[i2,s]-y[i1,s] <= self.M * q[s,i1,i2]
                    for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.O[s]) if i1<i2 ))
+    # 12
     self.estimator.addConstrs(( y[i1,s]-y[i2,s] <= self.M * (1-q[s,i1,i2])
                    for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.O[s]) if i1<i2 ))
+    # 13
     self.estimator.addConstrs(( x[i2,s]-y[i1,s] <= self.M * r[s,i1,i2]
                    for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.F[s]) if i1!=i2 ))
+    # 14
     self.estimator.addConstrs(( y[i1,s]-x[i2,s] <= self.M * (1-r[s,i1,i2])
                    for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.F[s]) if i1!=i2 ))
 
     # Siding and overtake constraints
     print("Adding siding and overtake constraints...")
+    # 15
     self.estimator.addConstrs(( z[s,i] == 0
                    for s in (self.S - self.B) for i in (self.G[s] - self.Gp[s]) ))
 
     # Quadruple track and headway constraints
     print("Adding quadruple track capacity and headway constraints...")
+    # 30
     self.estimator.addConstrs(( gb.quicksum(w1[j,i,k] for k in [1,2]) == 1
                    for j in self.A4 for i in self.T1[j] ))
+    # 31
     self.estimator.addConstrs(( gb.quicksum(w2[j,i,k] for k in [1,2]) == 1
                    for j in self.A4 for i in self.T2[j] ))
 
@@ -145,28 +158,17 @@ class Solver:
     # Parameters
     self.estimator.Params.LazyConstraints = 1
     self.estimator.Params.MIPGap = 0.01
+    self.estimator.Params.SoftMemLimit = 22
 
     # Run
     print("Starting...")
     self.estimator.optimize()
-    
-    for i in [23]:
-      for s in {self.o[i]}|self.V[i]|{self.f[i]}:
-        if s != self.o[i] and s != self.f[i]:
-          print(f"x[{i},{s}]={x[i,s].X}, y[{i},{s}]={y[i,s].X}")
-        elif s == self.o[i]:
-          print(f"y[{i},{s}]={y[i,s].X}")
-        else:
-          print(f"x[{i},{s}]={x[i,s].X}")
-    
 
   def callback(self, model:gb.Model, where):
     if where == gb.GRB.Callback.MIPSOL:
       vars = model.cbGetSolution(self._vars)
       x = vars['x']
       y = vars['y']
-      δp = vars['δp']
-      δm = vars['δm']
       p = vars['p']
       q = vars['q']
       r = vars['r']

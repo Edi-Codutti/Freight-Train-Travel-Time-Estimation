@@ -3,26 +3,15 @@ import numpy as np
 from solver import Solver
 
 
-def list_for_train (train_to_number, station_to_number, L_t):
-    n_treni = len(train_to_number)
+def indexed_data(data1_to_number, data2_to_number, L_t):
+    n_treni = len(data1_to_number)
     L = [[] for _ in range(n_treni)]
 
     # 2. Popola la lista usando i dizionari
     for train_id, station_list in L_t:
-        train_num = train_to_number[train_id]  # numero treno assegnato
-        station_nums = [station_to_number[st] for st in station_list if st in station_to_number]  # numeri stazioni TODO: è veramente necessario 'if st in station_to_number'?
+        train_num = data1_to_number[train_id]  # numero treno assegnato
+        station_nums = [data2_to_number[st] for st in station_list]
         L[train_num] = station_nums
-    return L
-
-# TODO: è possibile eliminare questa funzione e chiamare quella sopra invertendo il primo ed il secondo parametro?
-def list_for_station (train_to_number, station_to_number, L_t):
-    n_staz = len(station_to_number)
-    L = [[] for _ in range(n_staz)]
-
-    for station_id, train_list in L_t:
-        station_num = station_to_number[station_id]
-        train_nums = [train_to_number[tr] for tr in train_list if tr in train_to_number]
-        L[station_num] = train_nums
     return L
 
 def somma_binari(row):
@@ -52,7 +41,6 @@ df_SOD_2.columns = df_SOD_1.columns
 df_SOD = pd.concat([df_SOD_1, df_SOD_4, df_SOD_3, df_SOD_2], ignore_index=True)
 
 # Crea un dizionario di mapping: nome stazione → indice
-# station_to_number = df_SOD['Station'].to_dict() TODO: remove because immediately overwritten
 station_to_number = {name: idx for idx, name in df_SOD['Station'].items()}
 
 ############## S ##############
@@ -192,9 +180,7 @@ yard_act_stations_names = df_TMD[df_TMD['WORK_ORDR_FLG']=='Y']['STATION'].unique
 yard_act_stations = [station_to_number[name] for name in yard_act_stations_names if name in station_to_number] # TODO: do we need 'if name in station_to_number'?
 
 ############## U ##############
-# U = set of non yard stations having do/pu activities
 U = list(set(non_yard_stations) & set(yard_act_stations))
-
 
 ############## I ##############
 I = list(range(len(train_to_number)))
@@ -213,47 +199,29 @@ df_filtrato = df_TMD[~df_TMD['STN_TYPE'].isin(['Origin', 'Dest'])]
 
 # Ora raggruppa solo sulle righe filtrate
 V_t = df_filtrato.groupby('TRAIN_CD')['STATION'].apply(list).reset_index().values.tolist()
-# for train_id, stazioni in V_t:
-#     print(f"{train_id}: {stazioni}")
 
-V = list_for_train (train_to_number, station_to_number, V_t)
+V = indexed_data (train_to_number, station_to_number, V_t)
 
 
 ############## C ##############
 C_t = df_TMD[df_TMD['WORK_ORDR_FLG']=='Y'].groupby('TRAIN_CD')['STATION'].apply(list).reset_index().values.tolist()
-# for train_id, stazioni in C_t:
-#     print(f"{train_id}: {stazioni}")
 
-C = list_for_train (train_to_number, station_to_number, C_t)
+C = indexed_data (train_to_number, station_to_number, C_t)
 
 
 
 ############## W ##############
 W_t = df_TMD[df_TMD['CREW_CHG_FLG']=='Y'].groupby('TRAIN_CD')['STATION'].apply(list).reset_index().values.tolist()
-# for train_id, stazioni in W_t:
-#     print(f"{train_id}: {stazioni}")
 
-W = list_for_train (train_to_number, station_to_number, W_t)
-
-
-############## Cp ##############
-Cp_t = [[train_id, [st for st in stazioni if st in non_yard_stations_names]] for train_id, stazioni in C_t]
-# for train_id, stazioni in Cp_t:
-#     print(f"{train_id}: {stazioni}")
-
-Cp = list_for_train (train_to_number, station_to_number, Cp_t)
+W = indexed_data (train_to_number, station_to_number, W_t)
 
 ############## K ##############
 K_t = df_TMD[df_TMD['STN_TYPE']=='Stop'].groupby('TRAIN_CD')['STATION'].apply(list).reset_index().values.tolist()
-# for train_id, stazioni in K_t:
-#     print(f"{train_id}: {stazioni}")
 
-K = list_for_train (train_to_number, station_to_number, K_t)
+K = indexed_data (train_to_number, station_to_number, K_t)
 
 ############## o ##############
 o_t = df_TMD[df_TMD['STN_TYPE']=='Origin'].groupby('TRAIN_CD')['STATION'].apply(list).reset_index().values.tolist()
-# for train_id, stazioni in o_t:
-#     print(f"{train_id}: {stazioni}")
 
 n_treni = len(train_to_number)
 n_staz = len(station_to_number)
@@ -265,12 +233,11 @@ for train_id, station_list in o_t:
     if len(station_nums) == 1:
         o[train_num] = station_nums[0]
     else:
+        print(f"train: {train_id}, origin stations: {station_nums}")
         raise ValueError("La lista non ha un solo elemento")
 
 ############## f ##############
 f_t = df_TMD[df_TMD['STN_TYPE']=='Dest'].groupby('TRAIN_CD')['STATION'].apply(list).reset_index().values.tolist()
-# for train_id, stazioni in f_t:
-#     print(f"{train_id}: {stazioni}")
 
 f = [0]*n_treni
 
@@ -286,36 +253,28 @@ for train_id, station_list in f_t:
 ############## G ##############
 
 G_t = df_filtrato.groupby('STATION')['TRAIN_CD'].apply(list).reset_index().values.tolist()
-# for stazioni, train_id in G_t:
-#     print(f"{stazioni}: {train_id}")
 
-G = list_for_station (train_to_number, station_to_number, G_t)
+G = indexed_data(station_to_number, train_to_number, G_t)
 
 
 ############## Gp ##############
 Gp_t = df_filtrato[df_TMD['WORK_ORDR_FLG']=='Y'].groupby('STATION')['TRAIN_CD'].apply(list).reset_index().values.tolist()
-# for stazioni, train_id in Gp_t:
-#     print(f"{stazioni}: {train_id}")
 
-Gp = list_for_station (train_to_number, station_to_number, Gp_t)
+Gp = indexed_data(station_to_number, train_to_number, Gp_t)
 
 
 
 ############## O ##############
 O_t = df_TMD[df_TMD['STN_TYPE']=='Origin'].groupby('STATION')['TRAIN_CD'].apply(list).reset_index().values.tolist()
-# for stazioni, train_id in O_t:
-#     print(f"{stazioni}: {train_id}")
 
-O = list_for_station (train_to_number, station_to_number, O_t)
+O = indexed_data(station_to_number, train_to_number, O_t)
 
 
 
 ############## F ##############
 F_t = df_TMD[df_TMD['STN_TYPE']=='Dest'].groupby('STATION')['TRAIN_CD'].apply(list).reset_index().values.tolist()
-# for stazioni, train_id in F_t:
-#     print(f"{stazioni}: {train_id}")
 
-F = list_for_station (train_to_number, station_to_number, F_t)
+F = indexed_data(station_to_number, train_to_number, F_t)
 
 
 ############## t, E, T1, T2 ##############
@@ -344,31 +303,28 @@ for _, row in df_TMD.iterrows():
 # Matrice vuota con nan (nessun arrivo)
 a = np.full((n_treni, n_staz), np.nan)
 
-for _, row in df_TMD.iterrows(): # row è tipo diz, iterrows() restituisce una tupla (index, row), ma non ci serve l'indice, quindi mettiamo _.
+for _, row in df_TMD.iterrows():
     train_code = row['TRAIN_CD']
     station_name = row['STATION']
-    arrival_time = row['PLAN_ARR_TM']  # può essere datetime o stringa
+    arrival_time = row['PLAN_ARR_TM']
 
-    # TODO: è necessario questo if?
-    if train_code in train_to_number and station_name in station_to_number:
-        train_idx = train_to_number[train_code]
-        station_idx = station_to_number[station_name]
+    train_idx = train_to_number[train_code]
+    station_idx = station_to_number[station_name]
 
-        a[train_idx, station_idx] = arrival_time
+    a[train_idx, station_idx] = arrival_time
 
-# Matrice vuota con nan (nessun arrivo)
+# Matrice vuota con nan (nessuna partenza)
 d = np.full((n_treni, n_staz), np.nan)
 
-for _, row in df_TMD.iterrows(): # row è tipo diz, iterrows() restituisce una tupla (index, row), ma non ci serve l'indice, quindi mettiamo _.
+for _, row in df_TMD.iterrows():
     train_code = row['TRAIN_CD']
     station_name = row['STATION']
-    departure_time = row['PLAN_DEP_TM']  # può essere datetime o stringa
+    departure_time = row['PLAN_DEP_TM']
 
-    if train_code in train_to_number and station_name in station_to_number:
-        train_idx = train_to_number[train_code]
-        station_idx = station_to_number[station_name]
+    train_idx = train_to_number[train_code]
+    station_idx = station_to_number[station_name]
 
-        d[train_idx, station_idx] = departure_time
+    d[train_idx, station_idx] = departure_time
 
 
 ############## n , m ##############
@@ -410,5 +366,14 @@ for i in range(len(P)) :
 τ = lambda a,b : min(a,b)
 M = 48
 
-solver = Solver(I, S, J, H, L, A1, A2, A4, B, U, V, C, W, Cp, K, E, P, o, f, G, Gp, O, F, T1, T2, a, d, t, n, m, α, β, γ, θ, λ, τ, M)
+solver = Solver(I, S, J, H, L, A1, A2, A4, B, U, V, C, W, K, E, P, o, f, G, Gp, O, F, T1, T2, a, d, t, n, m, α, β, γ, θ, λ, τ, M)
 solver.solve()
+
+for i in [23]:
+    for s in [o[i]]+V[i]+[f[i]]:
+        if s != o[i] and s != f[i]:
+            print(f"x[{i},{s}]={solver._vars['x'][i,s].X}, y[{i},{s}]={solver._vars['y'][i,s].X}")
+        elif s == o[i]:
+            print(f"y[{i},{s}]={solver._vars['y'][i,s].X}")
+        else:
+            print(f"x[{i},{s}]={solver._vars['x'][i,s].X}")
