@@ -371,16 +371,16 @@ def load_and_solve(n_rows:int, day:str, export:bool):
     solver.solve()
 
     if export is True:
-        with open("train_mvmt_estimation.csv", "w") as f:
-            f.write("TRAIN_CD,STATION,EST_ARR_TM,EST_DEP_TM\n")
+        with open("train_mvmt_estimation.csv", "w") as csv:
+            csv.write("TRAIN_CD,STATION,EST_ARR_TM,EST_DEP_TM\n")
             for i in I:
                 for s in [o[i]]+V[i]+[f[i]]:
                     if s != o[i] and s != f[i]:
-                        f.write(f"{i},{s},{solver._vars['x'][i,s].X},{solver._vars['y'][i,s].X}\n")
+                        csv.write(f"{i},{s},{solver._vars['x'][i,s].X},{solver._vars['y'][i,s].X}\n")
                     elif s == o[i]:
-                        f.write(f"{i},{s},{np.nan},{solver._vars['y'][i,s].X}\n")
+                        csv.write(f"{i},{s},{np.nan},{solver._vars['y'][i,s].X}\n")
                     else:
-                        f.write(f"{i},{s},{solver._vars['x'][i,s].X},{np.nan}\n")
+                        csv.write(f"{i},{s},{solver._vars['x'][i,s].X},{np.nan}\n")
 
 
 if __name__ == '__main__':
