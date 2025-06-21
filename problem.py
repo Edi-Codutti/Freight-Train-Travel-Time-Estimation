@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from solver import Solver
+import datetime
 
 
 def indexed_data(data1_to_number, data2_to_number, L_t):
@@ -109,13 +110,17 @@ def load_and_solve(n_rows:int, day:str, export:bool):
     track_speed = [100] * len(J)
 
     #conversione da data a ora  in decimali 
-    df_TMD['PLAN_ARR_TM'] = (pd.to_datetime(df_TMD['PLAN_ARR_TM']).dt.hour +
+    """df_TMD['PLAN_ARR_TM'] = (pd.to_datetime(df_TMD['PLAN_ARR_TM']).dt.hour +
                             pd.to_datetime(df_TMD['PLAN_ARR_TM']).dt.minute / 60 +
                             pd.to_datetime(df_TMD['PLAN_ARR_TM']).dt.second / 3600)
 
     df_TMD['PLAN_DEP_TM'] = (pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.hour +
                             pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.minute / 60 +
-                            pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.second / 3600)
+                            pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.second / 3600)"""
+    df_TMD['PLAN_ARR_TM'] = (pd.to_datetime(df_TMD['PLAN_ARR_TM'])-datetime.datetime.fromisoformat(day))
+    df_TMD['PLAN_ARR_TM'] = df_TMD.apply(lambda x: x['PLAN_ARR_TM'].total_seconds()/3600, axis=1)
+    df_TMD['PLAN_DEP_TM'] = (pd.to_datetime(df_TMD['PLAN_DEP_TM'])-datetime.datetime.fromisoformat(day))
+    df_TMD['PLAN_DEP_TM'] = df_TMD.apply(lambda x: x['PLAN_DEP_TM'].total_seconds()/3600, axis=1)
 
     nc_idx_13 = []
     nc_idx_23 = []
@@ -381,6 +386,12 @@ def load_and_solve(n_rows:int, day:str, export:bool):
                         csv.write(f"{i},{s},{np.nan},{solver._vars['y'][i,s].X}\n")
                     else:
                         csv.write(f"{i},{s},{solver._vars['x'][i,s].X},{np.nan}\n")
+        with open("deviations.csv", "w") as csv:
+            csv.write("TRAIN_CD,TRAIN_PRTY,DEST_DEV\n")
+            for i in H:
+                csv.write(f"{i},H,{solver._vars['dp'][i,f[i]].X}\n")
+            for i in L:
+                csv.write(f"{i},L,{solver._vars['dp'][i,f[i]].X}\n")
 
 
 if __name__ == '__main__':

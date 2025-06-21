@@ -61,9 +61,9 @@ class Solver:
     y = self.estimator.addVars([ (i,s) for i in self.I for s in (self.V[i] | {self.o[i]}) ],
                    vtype=gb.GRB.CONTINUOUS, name='y')
     δp = self.estimator.addVars([ (i,s) for i in self.I for s in (self.K[i] | {self.f[i]}) ],
-                  vtype=gb.GRB.CONTINUOUS, name='δp')
+                  vtype=gb.GRB.CONTINUOUS, name='dp')
     δm = self.estimator.addVars([ (i,s) for i in self.I for s in (self.K[i] | {self.f[i]}) ],
-                  vtype=gb.GRB.CONTINUOUS, name='δm')
+                  vtype=gb.GRB.CONTINUOUS, name='dm')
     p = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] | self.F[s]) for i2 in (self.G[s] | self.F[s]) if i1<i2 ],
                    vtype=gb.GRB.BINARY, name='p')
     q = self.estimator.addVars([ (s,i1,i2) for s in self.S for i1 in (self.G[s] | self.O[s]) for i2 in (self.G[s] | self.O[s]) if i1<i2 ],
@@ -79,7 +79,7 @@ class Solver:
     w2 = self.estimator.addVars([ (j,i,k) for j in self.A4 for k in [1,2] for i in self.T2[j] ],
                   vtype=gb.GRB.BINARY, name='w2')
     
-    self._vars = {'x': x, 'y': y, 'δp': δp, 'δm': δm, 'p': p, 'q': q, 'r': r, 'z': z, 'h': h, 'w1': w1, 'w2': w2}
+    self._vars = {'x': x, 'y': y, 'dp': δp, 'dm': δm, 'p': p, 'q': q, 'r': r, 'z': z, 'h': h, 'w1': w1, 'w2': w2}
 
     # Departure and arrival constraints
     print("Adding departure and arrival constraints...")
