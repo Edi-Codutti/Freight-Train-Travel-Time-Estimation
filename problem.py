@@ -110,15 +110,9 @@ def load_and_solve(n_rows:int, day:str, export:bool):
     track_speed = [100] * len(J)
 
     #conversione da data a ora  in decimali 
-    """df_TMD['PLAN_ARR_TM'] = (pd.to_datetime(df_TMD['PLAN_ARR_TM']).dt.hour +
-                            pd.to_datetime(df_TMD['PLAN_ARR_TM']).dt.minute / 60 +
-                            pd.to_datetime(df_TMD['PLAN_ARR_TM']).dt.second / 3600)
-
-    df_TMD['PLAN_DEP_TM'] = (pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.hour +
-                            pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.minute / 60 +
-                            pd.to_datetime(df_TMD['PLAN_DEP_TM']).dt.second / 3600)"""
     df_TMD['PLAN_ARR_TM'] = (pd.to_datetime(df_TMD['PLAN_ARR_TM'])-datetime.datetime.fromisoformat(day))
     df_TMD['PLAN_ARR_TM'] = df_TMD.apply(lambda x: x['PLAN_ARR_TM'].total_seconds()/3600, axis=1)
+    
     df_TMD['PLAN_DEP_TM'] = (pd.to_datetime(df_TMD['PLAN_DEP_TM'])-datetime.datetime.fromisoformat(day))
     df_TMD['PLAN_DEP_TM'] = df_TMD.apply(lambda x: x['PLAN_DEP_TM'].total_seconds()/3600, axis=1)
 
