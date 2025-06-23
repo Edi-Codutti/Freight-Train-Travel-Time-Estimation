@@ -158,6 +158,7 @@ class Solver:
     # Parameters
     self.estimator.Params.LazyConstraints = 1
     self.estimator.Params.MIPGap = 0.01
+    self.estimator.Params.Method = 5
     #self.estimator.Params.SoftMemLimit = 22
 
     # Run
