@@ -32,9 +32,10 @@ if __name__ == '__main__':
         end = time.perf_counter()
         times.append((end-start))
         x.append(n-m)
-        inkey = input("Continue? [y/n]: ")
-        if inkey != 'y':
-            break
+        if i+1 != len(nrows):
+            inkey = input("Continue? [y/n]: ")
+            if inkey != 'y':
+                break
 
     plt.figure(figsize=(19.2, 10.8))
     plt.plot(x, times, 'o-')

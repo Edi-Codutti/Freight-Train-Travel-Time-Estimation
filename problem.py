@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from solver import Solver
 import datetime
+import sys
 
 
 def indexed_data(data1_to_number, data2_to_number, L_t):
@@ -87,7 +88,6 @@ def load_and_solve(n_rows:int, day:str, export:bool):
     B = df_SOD.query("Yard_Flg == 'Y' | Siding_Flg == 'Y'")['Station'].index.to_list()
 
     # non yard stations
-    non_yard_stations_names = df_SOD[df_SOD['Yard_Flg']!='Y']['Station'].tolist()   # TODO: unused variable
     non_yard_stations = df_SOD[df_SOD['Yard_Flg']!='Y']['Station'].index.tolist()
 
     df_TMD = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Train Mvmt Data', nrows=n_rows, usecols='A:M')
@@ -389,4 +389,14 @@ def load_and_solve(n_rows:int, day:str, export:bool):
 
 
 if __name__ == '__main__':
-    load_and_solve(n_rows=8013, day='2017-09-06', export=True)
+    if len(sys.argv) <= 1:
+        print("Usage: python3 problem.py <x> where 'x' is the day considered (can be 1 or 2)")
+        sys.exit(1)
+    if sys.argv[1] == '1':
+        date = '2017-09-06'
+    elif sys.argv[1] == '2':
+        date = '2017-09-07'
+    else:
+        print("Usage: python3 problem.py <x> where 'x' is the day considered (can be 1 or 2)")
+        sys.exit(1)
+    load_and_solve(n_rows=8013, day=date, export=True)

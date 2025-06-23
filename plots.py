@@ -3,55 +3,74 @@ import matplotlib.colors as mcolors
 import seaborn as sns
 import pandas as pd
 import numpy as np
+import sys
 
-deviations = pd.read_csv('deviations.csv')
-sns.kdeplot(data=deviations,
-            x='DEST_DEV', hue='TRAIN_PRTY', common_norm=False,
-            palette=['C6', 'C0'], fill=True)
-ylims = plt.ylim()
-plt.vlines([deviations[deviations['TRAIN_PRTY']=='H']['DEST_DEV'].mean(),
-            deviations[deviations['TRAIN_PRTY']=='L']['DEST_DEV'].mean()],
-            ymin=0, ymax=ylims[1], colors=['C6', 'C0'], linestyles='dashed')
-plt.xlabel('Deviation (hours)')
-plt.xticks([x for x in range(15)])
-plt.xlim((1,15))
-plt.ylim(ylims)
-plt.show()
+if __name__ == '__main__':
+    if len(sys.argv) <= 1:
+        print("Usage: python3 plots.py <x> where 'x' is the day considered (can be 1 or 2)")
+        sys.exit(1)
+    if sys.argv[1] == '1':
+        day = '2017-09-06'
+    elif sys.argv[1] == '2':
+        day = '2017-09-07'
+    else:
+        print("Usage: python3 plots.py <x> where 'x' is the day considered (can be 1 or 2)")
+        sys.exit(1)
 
-# main pt. 1
-df_SOD_1 = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Stn Order & Details', nrows=33, usecols='A:E')
-# south route
-df_SOD_2 = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Stn Order & Details', skiprows=35, nrows=6, usecols='A:E')
- # main pt. 2
-df_SOD_3 = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Stn Order & Details', skiprows=49, nrows=11, usecols='A:E')
-# north route
-df_SOD_4 = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Stn Order & Details', skiprows=35, nrows=12, usecols='G:K')
+    deviations = pd.read_csv('deviations.csv')
+    sns.kdeplot(data=deviations,
+                x='DEST_DEV', hue='TRAIN_PRTY', common_norm=False,
+                palette=['C6', 'C0'], fill=True)
+    ylims = plt.ylim()
+    plt.vlines([deviations[deviations['TRAIN_PRTY']=='H']['DEST_DEV'].mean(),
+                deviations[deviations['TRAIN_PRTY']=='L']['DEST_DEV'].mean()],
+                ymin=0, ymax=ylims[1], colors=['C6', 'C0'], linestyles='dashed')
+    plt.xlabel('Deviation (hours)')
+    if day == '2017-09-06':
+        plt.xticks([x for x in range(2,13)])
+        plt.xlim((1,12.4))
+    else:
+        plt.xticks([x for x in range(2,15)])
+        plt.xlim((1,15))
+    plt.ylim(ylims)
+    plt.show()
 
-df_SOD_4.columns = df_SOD_1.columns
-df_SOD_3.columns = df_SOD_1.columns
-df_SOD_2.columns = df_SOD_1.columns
+    if day == '2017-09-07':
+        sys.exit(0)
 
-df_SOD = pd.concat([df_SOD_1, df_SOD_4, df_SOD_3, df_SOD_2], ignore_index=True)
+    # main pt. 1
+    df_SOD_1 = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Stn Order & Details', nrows=33, usecols='A:E')
+    # south route
+    df_SOD_2 = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Stn Order & Details', skiprows=35, nrows=6, usecols='A:E')
+    # main pt. 2
+    df_SOD_3 = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Stn Order & Details', skiprows=49, nrows=11, usecols='A:E')
+    # north route
+    df_SOD_4 = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Stn Order & Details', skiprows=35, nrows=12, usecols='G:K')
 
-day='2017-09-06'
-n_rows = 8013
+    df_SOD_4.columns = df_SOD_1.columns
+    df_SOD_3.columns = df_SOD_1.columns
+    df_SOD_2.columns = df_SOD_1.columns
 
-df_TMD = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Train Mvmt Data', nrows=n_rows, usecols='A:M')
-df_TMD = df_TMD[df_TMD['DATE']==day] # modify this to change date
+    df_SOD = pd.concat([df_SOD_1, df_SOD_4, df_SOD_3, df_SOD_2], ignore_index=True)
 
-# delete where STATION == TO_STN
-to_delete = []
-for idx, row in df_TMD.iterrows():
-    if row['STATION'] == row['TO_STN']:
-        df_TMD.loc[idx+1, 'STN_TYPE'] = 'Origin'
-        df_TMD.loc[idx+1, 'PLAN_ARR_TM'] = np.nan
-        to_delete.append(idx)
-df_TMD = df_TMD.drop(index=to_delete)
-# associazione treno numero
-train_ids = df_TMD['TRAIN_CD'].unique()
-train_to_number = {int(train_id): i for i, train_id in enumerate(train_ids)}
-# Crea un dizionario di mapping: nome stazione → indice
-station_to_number = {name: idx for idx, name in df_SOD['Station'].items()}
+    n_rows = 8013
+
+    df_TMD = pd.read_excel(r"RAS-PSC_ValDataset_20200609-06.xlsx", sheet_name='Train Mvmt Data', nrows=n_rows, usecols='A:M')
+    df_TMD = df_TMD[df_TMD['DATE']==day] # modify this to change date
+
+    # delete where STATION == TO_STN
+    to_delete = []
+    for idx, row in df_TMD.iterrows():
+        if row['STATION'] == row['TO_STN']:
+            df_TMD.loc[idx+1, 'STN_TYPE'] = 'Origin'
+            df_TMD.loc[idx+1, 'PLAN_ARR_TM'] = np.nan
+            to_delete.append(idx)
+    df_TMD = df_TMD.drop(index=to_delete)
+    # associazione treno numero
+    train_ids = df_TMD['TRAIN_CD'].unique()
+    train_to_number = {int(train_id): i for i, train_id in enumerate(train_ids)}
+    # Crea un dizionario di mapping: nome stazione → indice
+    station_to_number = {name: idx for idx, name in df_SOD['Station'].items()}
 
 
 def plot_route( file_name, route, trains):
