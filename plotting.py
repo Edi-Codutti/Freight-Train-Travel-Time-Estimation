@@ -50,7 +50,7 @@ def plot_route( file_name, route, trains):
     # Plot
     plt.figure(figsize=(10, 6))
     cmap = plt.colormaps['tab10']
-    colors = [cmap(i) for i in range(10)]
+    colors = ['lightblue', 'blue', 'palegreen', 'green', 'pink', 'red', 'navajowhite', 'orange', 'plum', 'purple']
 
     trains_num = []
     for train_id in trains:
@@ -85,7 +85,7 @@ def plot_route( file_name, route, trains):
         for i, train_id in enumerate(trains)
     }
 
-    #per ogni treno selezionato (groupby)
+    #per ogni treno (groupby)
     for train_num, group in filt_df.groupby('TRAIN_CD'):
         color = train_colors[number_to_train[train_num]]
         train_label = f"Train {number_to_train[train_num]}"
@@ -96,12 +96,12 @@ def plot_route( file_name, route, trains):
             st = row['STATION']
             arr = row['EST_ARR_TM']
             dep = row['EST_DEP_TM']
-
+            
             next_row = group.iloc[i+1]
             next_st = next_row['STATION']
             next_arr = next_row['EST_ARR_TM']
 
-            if st in stations_num and next_st in stations_num:
+            if st in stations_num :
                 # Fermata
                 if pd.notna(arr) and pd.notna(dep) and arr != dep:
                     y = stations_to_y[int(st)]
@@ -110,7 +110,7 @@ def plot_route( file_name, route, trains):
                     labeled = True
 
                 # Movimento
-                if pd.notna(dep) and pd.notna(next_arr):
+                if pd.notna(dep) and pd.notna(next_arr) and next_st in stations_num:
                     y1, y2 = stations_to_y[int(st)], stations_to_y[int(next_st)]
                     plt.plot([dep, next_arr], [y1, y2], color=color, linewidth=2,
                             label=train_label if not labeled else "")
@@ -128,7 +128,7 @@ def plot_route( file_name, route, trains):
     # Legenda con codici treno
     handles, labels = plt.gca().get_legend_handles_labels()
     by_label = dict(sorted(zip(labels, handles)))  # ordina per label
-    plt.legend(by_label.values(), by_label.keys(), title="Train Number")
+    plt.legend(by_label.values(), by_label.keys(), title="Train Number", loc='center left', bbox_to_anchor=(1, 0.5))
     plt.grid(True)
     plt.tight_layout()
     plt.show()
