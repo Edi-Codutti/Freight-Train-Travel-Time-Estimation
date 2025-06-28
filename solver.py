@@ -159,9 +159,12 @@ class Solver:
     # Parameters
     self.estimator.Params.LazyConstraints = 1
     self.estimator.Params.MIPGap = 0.01
-    self.estimator.Params.Method = 4
-    self.estimator.Params.ConcurrentMethod = 3
-    #self.estimator.Params.SoftMemLimit = 22
+    self.estimator.Params.Method = 1
+    #self.estimator.Params.MIPFocus = 1
+    # self.estimator.Params.ConcurrentMethod = 3
+    # self.estimator.Params.SoftMemLimit = 24
+    #self.estimator.Params.NodefileStart = 0.1
+    #self.estimator.Params.Threads = 4
 
     # Run
     print("Starting...")
@@ -181,299 +184,230 @@ class Solver:
       w1 = model.cbGetSolution(self._vars['w1'])
       w2 = model.cbGetSolution(self._vars['w2'])
       # 16
-      try:
-        for s in self.S:
-          for i1 in (self.G[s] - self.Gp[s]):
-            for i2 in (self.G[s] - self.Gp[s]):
-              if i1 < i2:
-                if not h[s, i1, i2] >= (1-p[s,i1,i2]) - r[s,i2,i1] - z[s,i2]:
-                  model.cbLazy(self._vars['h'][s,i1,i2] >= (1-self._vars['p'][s,i1,i2]) - self._vars['r'][s,i2,i1] - self._vars['z'][s,i2])
-                  raise StopIteration
-      except StopIteration: pass
+      for s in self.S:
+        for i1 in (self.G[s] - self.Gp[s]):
+          for i2 in (self.G[s] - self.Gp[s]):
+            if i1 < i2:
+              if not h[s, i1, i2] >= (1-p[s,i1,i2]) - r[s,i2,i1] - z[s,i2]:
+                model.cbLazy(self._vars['h'][s,i1,i2] >= (1-self._vars['p'][s,i1,i2]) - self._vars['r'][s,i2,i1] - self._vars['z'][s,i2])
       # 17
-      try:
-        for s in self.S:
-          for i1 in (self.G[s] - self.Gp[s]):
-            for i2 in (self.G[s] - self.Gp[s]):
-              if i2 < i1:
-                if not h[s,i1,i2] >= p[s,i2,i1] - r[s,i2,i1] - z[s,i2]:
-                  model.cbLazy(( h[s,i1,i2] >= p[s,i2,i1] - r[s,i2,i1] - z[s,i2]
-                          for s in self.S for i1 in (self.G[s] - self.Gp[s]) for i2 in (self.G[s] - self.Gp[s]) if i2<i1 ))
-                  raise StopIteration
-      except StopIteration: pass
+      for s in self.S:
+        for i1 in (self.G[s] - self.Gp[s]):
+          for i2 in (self.G[s] - self.Gp[s]):
+            if i2 < i1:
+              if not h[s,i1,i2] >= p[s,i2,i1] - r[s,i2,i1] - z[s,i2]:
+                model.cbLazy(self._vars['h'][s,i1,i2] >= self._vars['p'][s,i2,i1] - self._vars['r'][s,i2,i1] - self._vars['z'][s,i2])
       # 18
-      try:
-        for s in self.S:
-          for i1 in (self.G[s] - self.Gp[s]):
-            if not z[s,i1] >= 1 + gb.quicksum(h[s,i1,i2] for i2 in (self.G[s] - self.Gp[s]) if i2 != i1).getValue() - self.m[s]:
-              model.cbLazy(( z[s,i1] >= 1 + gb.quicksum(h[s,i1,i2] for i2 in (self.G[s] - self.Gp[s]) if i2 != i1) - self.m[s]
-                      for s in self.S for i1 in (self.G[s] - self.Gp[s]) ))
-              raise StopIteration
-      except StopIteration: pass
+      for s in self.S:
+        for i1 in (self.G[s] - self.Gp[s]):
+          if not z[s,i1] >= 1 + gb.quicksum(h[s,i1,i2] for i2 in (self.G[s] - self.Gp[s]) if i2 != i1).getValue() - self.m[s]:
+            model.cbLazy(self._vars['z'][s,i1] >= 1 + gb.quicksum(self._vars['h'][s,i1,i2] for i2 in (self.G[s] - self.Gp[s]) if i2 != i1) - self.m[s])
       # 19
-      try:
-        for s in self.B:
-          for i1 in (self.G[s] - self.Gp[s]):
-            if not (z[s,i1] <= self.n[s] + self.m[s]
-                       - gb.quicksum(1-p[s,i1,i2] for i2 in (self.G[s] - self.Gp[s]) if i1 < i2).getValue()
-                       - gb.quicksum(p[s,i2,i1] for i2 in (self.G[s] - self.Gp[s]) if i2 < i1).getValue()
-                       + gb.quicksum(r[s,i2,i1] for i2 in (self.G[s] - self.Gp[s]) if i2 != i1).getValue()):
-              model.cbLazy(( z[s,i1] <= self.n[s] + self.m[s]
-                            - gb.quicksum(1-p[s,i1,i2] for i2 in (self.G[s] - self.Gp[s]) if i1 < i2)
-                            - gb.quicksum(p[s,i2,i1] for i2 in (self.G[s] - self.Gp[s]) if i2 < i1)
-                            + gb.quicksum(r[s,i2,i1] for i2 in (self.G[s] - self.Gp[s]) if i2 != i1)
-                      for s in self.B for i1 in (self.G[s] - self.Gp[s]) ))
-              raise StopIteration
-      except StopIteration: pass
+      for s in self.B:
+        for i1 in (self.G[s] - self.Gp[s]):
+          if not (z[s,i1] <= self.n[s] + self.m[s]
+                      - gb.quicksum(1-p[s,i1,i2] for i2 in (self.G[s] - self.Gp[s]) if i1 < i2).getValue()
+                      - gb.quicksum(p[s,i2,i1] for i2 in (self.G[s] - self.Gp[s]) if i2 < i1).getValue()
+                      + gb.quicksum(r[s,i2,i1] for i2 in (self.G[s] - self.Gp[s]) if i2 != i1).getValue()):
+            model.cbLazy( self._vars['z'][s,i1] <= self.n[s] + self.m[s]
+                          - gb.quicksum(1-self._vars['p'][s,i1,i2] for i2 in (self.G[s] - self.Gp[s]) if i1 < i2)
+                          - gb.quicksum(self._vars['p'][s,i2,i1] for i2 in (self.G[s] - self.Gp[s]) if i2 < i1)
+                          + gb.quicksum(self._vars['r'][s,i2,i1] for i2 in (self.G[s] - self.Gp[s]) if i2 != i1))
       # 20
-      try:
-        for j in self.A1:
-          for i1 in self.T1[j]:
-            for i2 in self.T2[j]:
-              if self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2, j, 0) != self.o[i2]:
-                if not y[i1,self.Pi(i1,j,0)] >= x[i2,self.Pi(i2,j,0)] - self.M * (1-r[self.Pi(i1,j,1),i2,i1]):
-                  model.cbLazy(( y[i1,self.Pi(i1,j,0)] >= x[i2,self.Pi(i2,j,0)] - self.M * (1-r[self.Pi(i1,j,1),i2,i1])
-                          for j in self.A1 for i1 in self.T1[j] for i2 in self.T2[j] if self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2, j, 0) != self.o[i2] ))
-                  raise StopIteration
-      except StopIteration: pass
+      for j in self.A1:
+        for i1 in self.T1[j]:
+          for i2 in self.T2[j]:
+            if self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2, j, 0) != self.o[i2]:
+              if not y[i1,self.Pi(i1,j,0)] >= x[i2,self.Pi(i2,j,0)] - self.M * (1-r[self.Pi(i1,j,1),i2,i1]):
+                model.cbLazy(self._vars['y'][i1,self.Pi(i1,j,0)] >= 
+                             self._vars['x'][i2,self.Pi(i2,j,0)] - self.M * (1-self._vars['r'][self.Pi(i1,j,1),i2,i1]))
       # 21
-      try:
-        for j in self.A1:
-          for i1 in self.T1[j]:
-            for i2 in self.T2[j]:
-              if self.Pi(i2,j,1) != self.f[i2] and self.Pi(i1,j,1) != self.o[i1]:
-                if not y[i2,self.Pi(i2,j,1)] >= x[i1,self.Pi(i1,j,1)] - self.M * (1-r[self.Pi(i1,j,0),i1,i2]):
-                  model.cbLazy(( y[i2,self.Pi(i2,j,1)] >= x[i1,self.Pi(i1,j,1)] - self.M * (1-r[self.Pi(i1,j,0),i1,i2])
-                          for j in self.A1 for i1 in self.T1[j] for i2 in self.T2[j] if self.Pi(i2,j,1) != self.f[i2] and self.Pi(i1,j,1) != self.o[i1] ))
-                raise StopIteration
-      except StopIteration: pass
-      # 22
-      try:
-        for j in self.A1:
-          for i1 in self.T1[j]:
-            for i2 in self.T1[j]:
-              if i1 < i2 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2]:
-                if not (y[i1, self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
-                                  + self.tau(self.t[i1,j],self.t[i2,j])
-                                  - min(self.t[i1,j], self.t[i2,j])
-                                  - self.M * q[self.Pi(i1,j,0), i1, i2]):
-                  model.cbLazy(( y[i1, self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
-                                       + self.tau(self.t[i1,j],self.t[i2,j])
-                                       - min(self.t[i1,j], self.t[i2,j])
-                                       - self.M * q[self.Pi(i1,j,0), i1, i2]
-                          for j in self.A1 for i1 in self.T1[j] for i2 in self.T1[j] if i1 < i2 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2]))
-                  raise StopIteration
-      except StopIteration: pass
+      for j in self.A1:
+        for i1 in self.T1[j]:
+          for i2 in self.T2[j]:
+            if self.Pi(i2,j,1) != self.f[i2] and self.Pi(i1,j,1) != self.o[i1]:
+              if not y[i2,self.Pi(i2,j,1)] >= x[i1,self.Pi(i1,j,1)] - self.M * (1-r[self.Pi(i1,j,0),i1,i2]):
+                model.cbLazy(self._vars['y'][i2,self.Pi(i2,j,1)] >=
+                              self._vars['x'][i1,self.Pi(i1,j,1)] - self.M * (1-self._vars['r'][self.Pi(i1,j,0),i1,i2]))
+      # 22 - to guarantee the existance of x, y, and q the considered stations must be checked against the origin and destinations
+      for j in self.A1:
+        for i1 in self.T1[j]:
+          for i2 in self.T1[j]:
+            if i1 < i2 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2] and self.Pi(i1,j,0) != self.f[i2]:
+              if not (y[i1, self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
+                                                + self.tau(self.t[i1,j],self.t[i2,j])
+                                                - min(self.t[i1,j], self.t[i2,j])
+                                                - self.M * q[self.Pi(i1,j,0), i1, i2]):
+                model.cbLazy(self._vars['y'][i1, self.Pi(i1,j,0)] >= self._vars['x'][i2, self.Pi(i2,j,1)]
+                                                                      + self.tau(self.t[i1,j],self.t[i2,j])
+                                                                      - min(self.t[i1,j], self.t[i2,j])
+                                                                      - self.M * self._vars['q'][self.Pi(i1,j,0), i1, i2])
       # 23
-      try:
-        for j in self.A1:
-          for i1 in self.T1[j]:
-            for i2 in self.T1[j]:
-              if i2 < i1 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2]:
-                if not (y[i1, self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
-                                  + self.tau(self.t[i1,j],self.t[i2,j])
-                                  - min(self.t[i1,j], self.t[i2,j])
-                                  - self.M * (1-q[self.Pi(i1,j,0), i2, i1])):
-                  model.cbLazy(( y[i1, self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
-                                       + self.tau(self.t[i1,j],self.t[i2,j])
-                                       - min(self.t[i1,j], self.t[i2,j])
-                                       - self.M * (1-q[self.Pi(i1,j,0), i2, i1])
-                        for j in self.A1 for i1 in self.T1[j] for i2 in self.T1[j] if i2 < i1 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2]))
-                  raise StopIteration
-      except StopIteration: pass
+      for j in self.A1:
+        for i1 in self.T1[j]:
+          for i2 in self.T1[j]:
+            if i2 < i1 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2] and self.Pi(i1,j,0) != self.f[i2]:
+              if not (y[i1, self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
+                                                + self.tau(self.t[i1,j],self.t[i2,j])
+                                                - min(self.t[i1,j], self.t[i2,j])
+                                                - self.M * (1-q[self.Pi(i1,j,0), i2, i1])):
+                model.cbLazy(self._vars['y'][i1, self.Pi(i1,j,0)] >= self._vars['x'][i2, self.Pi(i2,j,1)]
+                                                                    + self.tau(self.t[i1,j],self.t[i2,j])
+                                                                    - min(self.t[i1,j], self.t[i2,j])
+                                                                    - self.M * (1-self._vars['q'][self.Pi(i1,j,0), i2, i1]))
       # 24
-      try:
-        for j in self.A1:
-          for i1 in self.T2[j]:
-            for i2 in self.T2[j]:
-              if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2]:
-                if not (y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)]
-                                  + self.tau(self.t[i1,j],self.t[i2,j])
-                                  - min(self.t[i1,j], self.t[i2,j])
-                                  - self.M * q[self.Pi(i1,j,1), i1, i2]):
-                  model.cbLazy(( y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)]
-                                       + self.tau(self.t[i1,j],self.t[i2,j])
-                                       - min(self.t[i1,j], self.t[i2,j])
-                                       - self.M * q[self.Pi(i1,j,1), i1, i2]
-                        for j in self.A1 for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2]))
-                  raise StopIteration
-      except StopIteration: pass
+      for j in self.A1:
+        for i1 in self.T2[j]:
+          for i2 in self.T2[j]:
+            if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2] and self.Pi(i1,j,1) != self.f[i2]:
+              if not (y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)]
+                                                + self.tau(self.t[i1,j],self.t[i2,j])
+                                                - min(self.t[i1,j], self.t[i2,j])
+                                                - self.M * q[self.Pi(i1,j,1), i1, i2]):
+                model.cbLazy(self._vars['y'][i1, self.Pi(i1,j,1)] >= self._vars['x'][i2, self.Pi(i2,j,0)]
+                                                                    + self.tau(self.t[i1,j],self.t[i2,j])
+                                                                    - min(self.t[i1,j], self.t[i2,j])
+                                                                    - self.M * self._vars['q'][self.Pi(i1,j,1), i1, i2])
       # 25
-      try:
-        for j in self.A1:
-          for i1 in self.T2[j]:
-            for i2 in self.T2[j]:
-              if i2 < i1 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2]:
-                if not (y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)]
-                                  + self.tau(self.t[i1,j],self.t[i2,j])
-                                  - min(self.t[i1,j], self.t[i2,j])
-                                  - self.M * (1-q[self.Pi(i1,j,1), i2, i1])):
-                  model.cbLazy(( y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)]
-                                       + self.tau(self.t[i1,j],self.t[i2,j])
-                                       - min(self.t[i1,j], self.t[i2,j])
-                                       - self.M * (1-q[self.Pi(i1,j,1), i2, i1])
-                        for j in self.A1 for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2] ))
-                  raise StopIteration
-      except StopIteration: pass
+      for j in self.A1:
+        for i1 in self.T2[j]:
+          for i2 in self.T2[j]:
+            if i2 < i1 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2] and self.Pi(i1,j,1) != self.f[i2]:
+              if not (y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)]
+                                                + self.tau(self.t[i1,j],self.t[i2,j])
+                                                - min(self.t[i1,j], self.t[i2,j])
+                                                - self.M * (1-q[self.Pi(i1,j,1), i2, i1])):
+                model.cbLazy(self._vars['y'][i1, self.Pi(i1,j,1)] >= self._vars['x'][i2, self.Pi(i2,j,0)]
+                                                                    + self.tau(self.t[i1,j],self.t[i2,j])
+                                                                    - min(self.t[i1,j], self.t[i2,j])
+                                                                    - self.M * (1-self._vars['q'][self.Pi(i1,j,1), i2, i1]))
       # 26
-      try:
-        for j in self.A2:
-          for i1 in self.T1[j]:
-            for i2 in self.T1[j]:
-              if i1 < i2 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2]:
-                if not (y[i1, self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
-                                  + self.tau(self.t[i1,j],self.t[i2,j])
-                                  - min(self.t[i1,j], self.t[i2,j])
-                                  - self.M * q[self.Pi(i1,j,0), i1, i2]):
-                  model.cbLazy(( y[i1, self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
-                                       + self.tau(self.t[i1,j],self.t[i2,j])
-                                       - min(self.t[i1,j], self.t[i2,j])
-                                       - self.M * q[self.Pi(i1,j,0), i1, i2]
-                          for j in self.A2 for i1 in self.T1[j] for i2 in self.T1[j] if i1 < i2 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2]))
-                  raise StopIteration
-      except StopIteration: pass
+      for j in self.A2:
+        for i1 in self.T1[j]:
+          for i2 in self.T1[j]:
+            if i1 < i2 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2] and self.Pi(i1,j,0) != self.f[i2]:
+              if not (y[i1, self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
+                                                + self.tau(self.t[i1,j],self.t[i2,j])
+                                                - min(self.t[i1,j], self.t[i2,j])
+                                                - self.M * q[self.Pi(i1,j,0), i1, i2]):
+                model.cbLazy(self._vars['y'][i1, self.Pi(i1,j,0)] >= self._vars['x'][i2, self.Pi(i2,j,1)]
+                                                                    + self.tau(self.t[i1,j],self.t[i2,j])
+                                                                    - min(self.t[i1,j], self.t[i2,j])
+                                                                    - self.M * self._vars['q'][self.Pi(i1,j,0), i1, i2])
       # 27
-      try:
-        for j in self.A2:
+      for j in self.A2:
+        for i1 in self.T1[j]:
+          for i2 in self.T1[j]:
+            if i2 < i1 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2] and self.Pi(i1,j,0) != self.f[i2]:
+              if not (y[i1, self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
+                                                + self.tau(self.t[i1,j],self.t[i2,j])
+                                                - min(self.t[i1,j], self.t[i2,j])
+                                                - self.M * (1-q[self.Pi(i1,j,0), i2, i1])):
+                model.cbLazy(self._vars['y'][i1, self.Pi(i1,j,0)] >= self._vars['x'][i2, self.Pi(i2,j,1)]
+                                                + self.tau(self.t[i1,j],self.t[i2,j])
+                                                - min(self.t[i1,j], self.t[i2,j])
+                                                - self.M * (1-self._vars['q'][self.Pi(i1,j,0), i2, i1]))
+      # 28
+      for j in self.A2:
+        for i1 in self.T2[j]:
+          for i2 in self.T2[j]:
+            if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2] and self.Pi(i1,j,1) != self.f[i2]:
+              if not (y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)]
+                                                + self.tau(self.t[i1,j],self.t[i2,j])
+                                                - min(self.t[i1,j], self.t[i2,j])
+                                                - self.M * q[self.Pi(i1,j,1), i1, i2]):
+                model.cbLazy(self._vars['y'][i1, self.Pi(i1,j,1)] >= self._vars['x'][i2, self.Pi(i2,j,0)]
+                                                                    + self.tau(self.t[i1,j],self.t[i2,j])
+                                                                    - min(self.t[i1,j], self.t[i2,j])
+                                                                    - self.M * self._vars['q'][self.Pi(i1,j,1), i1, i2])
+      # 29
+      for j in self.A2:
+        for i1 in self.T2[j]:
+          for i2 in self.T2[j]:
+            if i2 < i1 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2] and self.Pi(i1,j,1) != self.f[i2]:
+              if not (y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)]
+                                                + self.tau(self.t[i1,j],self.t[i2,j])
+                                                - min(self.t[i1,j], self.t[i2,j])
+                                                - self.M * (1-q[self.Pi(i1,j,1), i2, i1])):
+                model.cbLazy(self._vars['y'][i1, self.Pi(i1,j,1)] >= self._vars['x'][i2, self.Pi(i2,j,0)]
+                                                                    + self.tau(self.t[i1,j],self.t[i2,j])
+                                                                    - min(self.t[i1,j], self.t[i2,j])
+                                                                    - self.M * (1-self._vars['q'][self.Pi(i1,j,1), i2, i1]))
+      # 32
+      for j in self.A4:
+        for k in [1,2]:
           for i1 in self.T1[j]:
             for i2 in self.T1[j]:
-              if i2 < i1 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2]:
-                if not (y[i1, self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
-                                  + self.tau(self.t[i1,j],self.t[i2,j])
-                                  - min(self.t[i1,j], self.t[i2,j])
-                                  - self.M * (1-q[self.Pi(i1,j,0), i2, i1])):
-                  model.cbLazy(( y[i1, self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
-                                       + self.tau(self.t[i1,j],self.t[i2,j])
-                                       - min(self.t[i1,j], self.t[i2,j])
-                                       - self.M * (1-q[self.Pi(i1,j,0), i2, i1])
-                        for j in self.A2 for i1 in self.T1[j] for i2 in self.T1[j] if i2 < i1 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2]))
-                  raise StopIteration
-      except StopIteration: pass
-      # 28
-      try:
-        for j in self.A2:
-          for i1 in self.T2[j]:
-            for i2 in self.T2[j]:
-              if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2]:
-                if not (y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)]
-                                  + self.tau(self.t[i1,j],self.t[i2,j])
-                                  - min(self.t[i1,j], self.t[i2,j])
-                                  - self.M * q[self.Pi(i1,j,1), i1, i2]):
-                  model.cbLazy(( y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)]
-                                       + self.tau(self.t[i1,j],self.t[i2,j])
-                                       - min(self.t[i1,j], self.t[i2,j])
-                                       - self.M * q[self.Pi(i1,j,1), i1, i2]
-                        for j in self.A2 for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2]))
-                  raise StopIteration
-      except StopIteration: pass
-      # 29
-      try:
-        for j in self.A2:
-          for i1 in self.T2[j]:
-            for i2 in self.T2[j]:
-              if i2 < i1 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2]:
-                if not (y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)]
-                                  + self.tau(self.t[i1,j],self.t[i2,j])
-                                  - min(self.t[i1,j], self.t[i2,j])
-                                  - self.M * (1-q[self.Pi(i1,j,1), i2, i1])):
-                  model.cbLazy(( y[i1, self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)]
-                                       + self.tau(self.t[i1,j],self.t[i2,j])
-                                       - min(self.t[i1,j], self.t[i2,j])
-                                       - self.M * (1-q[self.Pi(i1,j,1), i2, i1])
-                        for j in self.A2 for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2] ))
-                  raise StopIteration
-      except StopIteration: pass
-      # 32
-      try:
-        for j in self.A4:
-          for k in [1,2]:
-            for i1 in self.T1[j]:
-              for i2 in self.T1[j]:
-                if i1 < i2 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2]:
-                  if not (y[i1,self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
-                                                   + self.tau(self.t[i1,j],self.t[i2,j])
-                                                   - min(self.t[i1,j], self.t[i2,j])
-                                                   - self.M * (2 + q[self.Pi(i1,j,0), i1, i2] - w1[j,i1,k] - w1[j,i2,k])):
-                    model.cbLazy(( y[i1,self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
-                                                            + self.tau(self.t[i1,j],self.t[i2,j])
-                                                            - min(self.t[i1,j], self.t[i2,j])
-                                                            - self.M * (2 + q[self.Pi(i1,j,0), i1, i2] - w1[j,i1,k] - w1[j,i2,k])
-                                  for j in self.A4 for k in [1,2] for i1 in self.T1[j] for i2 in self.T1[j] if i1 < i2 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2]))
-                    raise StopIteration
-      except StopIteration: pass
+              if i1 < i2 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2] and self.Pi(i1,j,0) != self.f[i2]:
+                if not (y[i1,self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
+                                                  + self.tau(self.t[i1,j],self.t[i2,j])
+                                                  - min(self.t[i1,j], self.t[i2,j])
+                                                  - self.M * (2 + q[self.Pi(i1,j,0), i1, i2] - w1[j,i1,k] - w1[j,i2,k])):
+                  model.cbLazy(self._vars['y'][i1,self.Pi(i1,j,0)] >= self._vars['x'][i2, self.Pi(i2,j,1)]
+                                                          + self.tau(self.t[i1,j],self.t[i2,j])
+                                                          - min(self.t[i1,j], self.t[i2,j])
+                                                          - self.M * (2 + self._vars['q'][self.Pi(i1,j,0), i1, i2]
+                                                                      - self._vars['w1'][j,i1,k]
+                                                                      - self._vars['w1'][j,i2,k]))
       # 33
-      try:
-        for j in self.A4:
-          for k in [1,2]:
-            for i1 in self.T1[j]:
-              for i2 in self.T1[j]:
-                if i2 < i1 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2]:
-                  if not (y[i1,self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
-                                                   + self.tau(self.t[i1,j],self.t[i2,j])
-                                                   - min(self.t[i1,j], self.t[i2,j])
-                                                   - self.M * (3 - q[self.Pi(i1,j,0), i2, i1] - w1[j,i1,k] - w1[j,i2,k])):
-                    model.cbLazy(( y[i1,self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
-                                                            + self.tau(self.t[i1,j],self.t[i2,j])
-                                                            - min(self.t[i1,j], self.t[i2,j])
-                                                            - self.M * (3 - q[self.Pi(i1,j,0), i2, i1] - w1[j,i1,k] - w1[j,i2,k])
-                                  for j in self.A4 for k in [1,2] for i1 in self.T1[j] for i2 in self.T1[j] if i2 < i1 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2]))
-                    raise StopIteration
-      except StopIteration: pass
+      for j in self.A4:
+        for k in [1,2]:
+          for i1 in self.T1[j]:
+            for i2 in self.T1[j]:
+              if i2 < i1 and self.Pi(i1,j,0) != self.f[i1] and self.Pi(i2,j,1) != self.o[i2] and self.Pi(i1,j,0) != self.f[i2]:
+                if not (y[i1,self.Pi(i1,j,0)] >= x[i2, self.Pi(i2,j,1)]
+                                                  + self.tau(self.t[i1,j],self.t[i2,j])
+                                                  - min(self.t[i1,j], self.t[i2,j])
+                                                  - self.M * (3 - q[self.Pi(i1,j,0), i2, i1] - w1[j,i1,k] - w1[j,i2,k])):
+                  model.cbLazy(self._vars['y'][i1,self.Pi(i1,j,0)] >= self._vars['x'][i2, self.Pi(i2,j,1)]
+                                                          + self.tau(self.t[i1,j],self.t[i2,j])
+                                                          - min(self.t[i1,j], self.t[i2,j])
+                                                          - self.M * (3 - self._vars['q'][self.Pi(i1,j,0), i2, i1]
+                                                                      - self._vars['w1'][j,i1,k]
+                                                                      - self._vars['w1'][j,i2,k]))
       # 34
-      try:
-        for j in self.A4:
-          for k in [1,2]:
-            for i1 in self.T2[j]:
-              for i2 in self.T2[j]:
-                if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2]:
-                  if not (y[i1,self.Pi(i1, j, 1)] >= x[i2, self.Pi(i2,j,0)]
-                                                     + self.tau(self.t[i1,j],self.t[i2,j])
-                                                     - min(self.t[i1,j], self.t[i2,j])
-                                                     - self.M * (2 + q[self.Pi(i1,j,1), i1, i2] - w2[j,i1,k] - w2[j,i2,k])):
-                    model.cbLazy(( y[i1,self.Pi(i1, j, 1)] >= x[i2, self.Pi(i2,j,0)]
-                                                              + self.tau(self.t[i1,j],self.t[i2,j])
-                                                              - min(self.t[i1,j], self.t[i2,j])
-                                                              - self.M * (2 + q[self.Pi(i1,j,1), i1, i2] - w2[j,i1,k] - w2[j,i2,k])
-                  for j in self.A4 for k in [1,2] for i1 in self.T2[j] for i2 in self.T2[j] if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2]))
-                    raise StopIteration
-      except StopIteration: pass
-      # 35
-      try:
-        for j in self.A4:
-          for k in [1,2]:
-            for i1 in self.T2[j]:
-              for i2 in self.T2[j]:
-                if i2 < i1 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2]:
-                  if not (y[i1,self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)]
-                                                   + self.tau(self.t[i1,j],self.t[i2,j])
-                                                   - min(self.t[i1,j], self.t[i2,j])
-                                                   - self.M * (3 - q[self.Pi(i1,j,1), i2, i1] - w2[j,i1,k] - w2[j,i2,k])):
-                    model.cbLazy(( y[i1,self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)]
+      for j in self.A4:
+        for k in [1,2]:
+          for i1 in self.T2[j]:
+            for i2 in self.T2[j]:
+              if i1 < i2 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2] and self.Pi(i1,j,1) != self.f[i2]:
+                if not (y[i1,self.Pi(i1, j, 1)] >= x[i2, self.Pi(i2,j,0)]
+                                                    + self.tau(self.t[i1,j],self.t[i2,j])
+                                                    - min(self.t[i1,j], self.t[i2,j])
+                                                    - self.M * (2 + q[self.Pi(i1,j,1), i1, i2] - w2[j,i1,k] - w2[j,i2,k])):
+                  model.cbLazy(self._vars['y'][i1,self.Pi(i1, j, 1)] >= self._vars['x'][i2, self.Pi(i2,j,0)]
                                                             + self.tau(self.t[i1,j],self.t[i2,j])
                                                             - min(self.t[i1,j], self.t[i2,j])
-                                                            - self.M * (3 - q[self.Pi(i1,j,1), i2, i1] - w2[j,i1,k] - w2[j,i2,k])
-                  for j in self.A4 for k in [1,2] for i1 in self.T2[j] for i2 in self.T2[j] if i2 < i1 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2]))
-                    raise StopIteration
-      except StopIteration: pass
+                                                            - self.M * (2 + self._vars['q'][self.Pi(i1,j,1), i1, i2]
+                                                                        - self._vars['w2'][j,i1,k]
+                                                                        - self._vars['w2'][j,i2,k]))
+      # 35
+      for j in self.A4:
+        for k in [1,2]:
+          for i1 in self.T2[j]:
+            for i2 in self.T2[j]:
+              if i2 < i1 and self.Pi(i1,j,1) != self.f[i1] and self.Pi(i2,j,0) != self.o[i2] and self.Pi(i1,j,1) != self.f[i2]:
+                if not (y[i1,self.Pi(i1,j,1)] >= x[i2, self.Pi(i2,j,0)]
+                                                  + self.tau(self.t[i1,j],self.t[i2,j])
+                                                  - min(self.t[i1,j], self.t[i2,j])
+                                                  - self.M * (3 - q[self.Pi(i1,j,1), i2, i1] - w2[j,i1,k] - w2[j,i2,k])):
+                  model.cbLazy(self._vars['y'][i1,self.Pi(i1,j,1)] >= self._vars['x'][i2, self.Pi(i2,j,0)]
+                                                          + self.tau(self.t[i1,j],self.t[i2,j])
+                                                          - min(self.t[i1,j], self.t[i2,j])
+                                                          - self.M * (3 - self._vars['q'][self.Pi(i1,j,1), i2, i1]
+                                                                      - self._vars['w2'][j,i1,k]
+                                                                      - self._vars['w2'][j,i2,k]))
       # 36
-      try:
-        for s in self.U:
-          for i1 in self.Gp[s]:
-            for i2 in self.Gp[s]:
-              if i1 < i2 and s != self.o[i1] and s != self.f[i2]:
-                if not (x[i1,s] >= y[i2,s] - self.M * p[s,i1,i2]):
-                  model.cbLazy(( x[i1,s] >= y[i2,s] - self.M * p[s,i1,i2]
-                                for s in self.U for i1 in self.Gp[s] for i2 in self.Gp[s] if i1 < i2 and s != self.o[i1] and s != self.f[i2]))
-                  raise StopIteration
-      except StopIteration: pass
+      for s in self.U:
+        for i1 in self.Gp[s]:
+          for i2 in self.Gp[s]:
+            if i1 < i2 and s != self.o[i1] and s != self.f[i2]:
+              if not (x[i1,s] >= y[i2,s] - self.M * p[s,i1,i2]):
+                model.cbLazy(self._vars['x'][i1,s] >= self._vars['y'][i2,s] - self.M * self._vars['p'][s,i1,i2])
       # 37
-      try:
-        for s in self.U:
-          for i1 in self.Gp[s]:
-            for i2 in self.Gp[s]:
-              if i2 < i1 and s != self.o[i1] and s != self.f[i2]:
-                if not (x[i1,s] >= y[i2,s] - self.M * (1-p[s,i2,i1])):
-                  model.cbLazy(( x[i1,s] >= y[i2,s] - self.M * (1-p[s,i2,i1])
-                                for s in self.U for i1 in self.Gp[s] for i2 in self.Gp[s] if i2 < i1 and s != self.o[i1] and s != self.f[i2]))
-                  raise StopIteration
-      except StopIteration: pass
+      for s in self.U:
+        for i1 in self.Gp[s]:
+          for i2 in self.Gp[s]:
+            if i2 < i1 and s != self.o[i1] and s != self.f[i2]:
+              if not (x[i1,s] >= y[i2,s] - self.M * (1-p[s,i2,i1])):
+                model.cbLazy(self._vars['x'][i1,s] >= self._vars['y'][i2,s] - self.M * (1-self._vars['p'][s,i2,i1]))

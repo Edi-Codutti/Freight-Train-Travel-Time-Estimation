@@ -399,4 +399,4 @@ if __name__ == '__main__':
     else:
         print("Usage: python3 problem.py <x> where 'x' is the day considered (can be 1 or 2)")
         sys.exit(1)
-    load_and_solve(n_rows=199, day=date, export=True)
+    load_and_solve(n_rows=8013, day=date, export=True)

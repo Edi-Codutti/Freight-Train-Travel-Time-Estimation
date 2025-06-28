@@ -10,7 +10,7 @@ if __name__ == '__main__':
         print("Usage: python3 scalability.py <x> where 'x' is the day considered (can be 1 or 2)")
         sys.exit(1)
     if sys.argv[1] == '1':
-        nrows = [199, 406, 590, 797, 1004, 1211, 1395, 1602, 1806, 1998, 2206, 2398, 2606, 2798, 3005, 3197, 3407, 3600, 3800, 3978]
+        nrows = [107, 199, 314, 406, 498, 590, 705, 797]#, 889, 1004, 1211, 1395, 1602, 1806, 1998, 2206, 2398, 2606, 2798, 3005, 3197, 3407, 3600, 3800, 3978]
         date = '2017-09-06'
         m = 0
     elif sys.argv[1] == '2':
@@ -25,6 +25,8 @@ if __name__ == '__main__':
     x = []
 
     input('Press enter to start...')
+    with open("scalability.csv", "w") as csv:
+        csv.write("N_ROWS,TIME\n")
     for i,n in enumerate(nrows):
         print(f"\n ####### {n-m} rows ({i+1}/{len(nrows)}) #######\n")
         start = time.perf_counter()
@@ -32,6 +34,9 @@ if __name__ == '__main__':
         end = time.perf_counter()
         times.append((end-start))
         x.append(n-m)
+        with open("scalability.csv","a") as csv:
+            csv.write(f"{n-m},{end-start}\n")
+        print(f"\n ####### {n-m} rows ({i+1}/{len(nrows)}) END #######\n")
         """if i+1 != len(nrows):
             inkey = input("Continue? [y/n]: ")
             if inkey != 'y':
@@ -43,7 +48,7 @@ if __name__ == '__main__':
     plt.xticks(x)
     plt.xlim((x[0], x[-1]))
     plt.ylabel('Execution time (seconds)')
-    plt.yticks([y for y in range(0,240,30)])
+    #plt.yticks([y for y in range(0,240,30)])
     plt.ylim((0, max(times)))
     plt.grid()
     plt.savefig('scalability.png')
