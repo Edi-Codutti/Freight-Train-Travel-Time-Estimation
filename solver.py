@@ -80,6 +80,7 @@ class Solver:
                   vtype=gb.GRB.BINARY, name='w2')
     
     self._vars = {'x': x, 'y': y, 'dp': δp, 'dm': δm, 'p': p, 'q': q, 'r': r, 'z': z, 'h': h, 'w1': w1, 'w2': w2}
+    self._x = x
 
     # Departure and arrival constraints
     print("Adding departure and arrival constraints...")
@@ -164,20 +165,21 @@ class Solver:
 
     # Run
     print("Starting...")
-    self.estimator.optimize()
+    self.estimator.optimize(self.callback)
 
   def callback(self, model:gb.Model, where):
     if where == gb.GRB.Callback.MIPSOL:
-      vars = model.cbGetSolution(self._vars)
-      x = vars['x']
-      y = vars['y']
-      p = vars['p']
-      q = vars['q']
-      r = vars['r']
-      z = vars['z']
-      h = vars['h']
-      w1 = vars['w1']
-      w2 = vars['w2']
+      """vars = model.cbGetSolution(self._x)
+      print(vars)"""
+      x = model.cbGetSolution(self._vars['x'])
+      y = model.cbGetSolution(self._vars['y'])
+      p = model.cbGetSolution(self._vars['p'])
+      q = model.cbGetSolution(self._vars['q'])
+      r = model.cbGetSolution(self._vars['r'])
+      z = model.cbGetSolution(self._vars['z'])
+      h = model.cbGetSolution(self._vars['h'])
+      w1 = model.cbGetSolution(self._vars['w1'])
+      w2 = model.cbGetSolution(self._vars['w2'])
       # 16
       try:
         for s in self.S:
@@ -185,11 +187,7 @@ class Solver:
             for i2 in (self.G[s] - self.Gp[s]):
               if i1 < i2:
                 if not h[s, i1, i2] >= (1-p[s,i1,i2]) - r[s,i2,i1] - z[s,i2]:
-                  model.cbLazy((h[s,i1,i2] >= (1-p[s,i1,i2]) - r[s,i2,i1] - z[s,i2]
-                          for s in self.S
-                          for i1 in (self.G[s] - self.Gp[s])
-                          for i2 in (self.G[s] - self.Gp[s])
-                          if i1<i2))
+                  model.cbLazy(self._vars['h'][s,i1,i2] >= (1-self._vars['p'][s,i1,i2]) - self._vars['r'][s,i2,i1] - self._vars['z'][s,i2])
                   raise StopIteration
       except StopIteration: pass
       # 17
